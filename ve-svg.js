@@ -14,13 +14,13 @@ export const KIEU = {
   'de': {
     canh: '#000', phu: '#000', noi: '#000', td: '#000', toTd: 'rgba(0, 0, 0, 0.09)', diem: '#000', chu: '#000', moi: '#d9480f',
     matP: '#555', toMatP: 'rgba(0, 0, 0, 0.13)', toDay: 'rgba(255, 255, 255, 0.72)',
-    toTrai: { day: '#e9e9e9', ben: '#fafafa', tren: '#f1f1f1' },
+    toTrai: { day: '#e9e9e9', ben: '#fafafa', tren: '#f1f1f1' }, doDac: '#000',
     rong: 1.4, rongKhuat: 1.1, rongPhu: 1.1, net: '5 4', banKinhDiem: 2.2
   },
   'bai-giang': {
     canh: '#1f3c88', phu: '#6b778c', noi: '#2f6f4f', td: '#c0392b', toTd: 'rgba(230, 126, 34, 0.30)', diem: '#1b1f24', chu: '#1b1f24', moi: '#e8590c',
     matP: '#5a6b8c', toMatP: 'rgba(52, 78, 140, 0.20)', toDay: 'rgba(255, 255, 255, 0.70)',
-    toTrai: { day: '#cfe0ff', ben: '#f3f7ff', tren: '#ffe3c2' },
+    toTrai: { day: '#cfe0ff', ben: '#f3f7ff', tren: '#ffe3c2' }, doDac: '#8e3fbf',
     rong: 1.8, rongKhuat: 1.4, rongPhu: 1.3, net: '6 4', banKinhDiem: 2.6
   }
 };
@@ -82,12 +82,15 @@ const kieuDoan = (K, s) => s.loai === 'thiet-dien' || s.thietDien ? { mau: K.td,
 // ep: {idĐoạn: 'tu-dong' | 'lien' | 'khuat'} cho phép chỉnh tay từng nét
 // khung (trình chiếu từng bước): { doan, diem, daGiac, moi } — chỉ vẽ những gì đã dựng tới bước này, tô nổi phần mới
 // diemChon: điểm vừa bấm khi nối hai điểm bằng chuột (vẽ vòng tô quanh nó)
-export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = {}, chon = null, coChu = 20, khung = null, matDay = false, diemChon = null } = {}) {
+// doVe: hình vẽ của các phép đo đang hiện (core/do-dac.js hinhVeDo): đoạn khoảng cách, cung góc, dấu góc vuông
+export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = {}, chon = null, coChu = 20, khung = null, matDay = false, diemChon = null, doVe = [] } = {}) {
   const K = KIEU[kieu];
   // Canh hình chiếu vừa khung (đổi liên tục khi xoay nên không bị giật); có mặt phẳng đáy thì canh cả mặt phẳng
   // Đường thẳng kéo dài ra ngoài khối: canh khung theo cả hai đầu kéo dài
   const dauDuong = hinh.doan.filter(s => s.duong).flatMap(s => dauMutDoan(hinh, s));
-  const man = canhKhung(svg, [...Object.values(hinh.diem), ...dauDuong, ...(matDay ? matPhangDay(hinh) : [])], pc, coChu);
+  // Chân đường vuông góc của phép đo có thể ở ngoài khối: cũng phải lọt khung
+  const diemDo = doVe.flatMap(v => [...v.diem, ...v.doan.flatMap(s => [s.a, s.b])]);
+  const man = canhKhung(svg, [...Object.values(hinh.diem), ...dauDuong, ...diemDo, ...(matDay ? matPhangDay(hinh) : [])], pc, coChu);
 
   const net = tinhNet(hinh, pc);
   const lop = { matP: nhom(svg), to: nhom(svg), chon: nhom(svg), khuat: nhom(svg), thay: nhom(svg), bam: nhom(svg), diem: nhom(svg), chu: nhom(svg), bamDiem: nhom(svg) };
@@ -157,6 +160,8 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
     }));
   }
 
+  if (doVe.length) veDoDac(lop.thay, lop.khuat, lop.chu, doVe, hinh, pc, man, K, coChu);
+
   const doanHien = hinh.doan.filter(hienDoan);
   const tam2 = man(hinh.tam);
   for (const [ten, p3] of Object.entries(hinh.diem)) {
@@ -185,6 +190,70 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
     lop.chu.appendChild(t);
   }
   return { net };
+}
+
+// Hình vẽ của phép đo: đoạn khoảng cách (đậm hơn, phần bị khối che vẽ đứt), nét phụ (mảnh, đứt),
+// cung đánh dấu góc kèm số đo, dấu góc vuông, chữ ghi độ dài
+function veDoDac(lopThay, lopKhuat, lopChu, doVe, hinh, pc, man, K, coChu) {
+  const mau = K.doDac, eps = 1e-7 * hinh.banKinh;
+  const chu = (x, y, noiDung, coThem = {}) => {
+    const t = phanTu('text', {
+      x, y, fill: mau, 'font-size': coChu * 0.78, 'font-family': '"Times New Roman", Times, serif',
+      'text-anchor': 'middle', 'dominant-baseline': 'central', 'paint-order': 'stroke', stroke: '#fff', 'stroke-width': 3, 'stroke-linejoin': 'round', ...coThem
+    });
+    t.textContent = noiDung;
+    lopChu.appendChild(t);
+  };
+  for (const v of doVe) {
+    for (const s of v.doan) {
+      // chính: đoạn khoảng cách (đậm); đề: đường đề cho (như nét thường); phụ: nét đứt nhạt
+      const chinh = s.loai === 'chinh', phu = s.loai === 'phu';
+      for (const k of chiaDoan(s.a, s.b, hinh.matChe, pc, eps)) {
+        const l = duong(man(lerp(s.a, s.b, k.t0)), man(lerp(s.a, s.b, k.t1)), {
+          stroke: mau, 'stroke-width': chinh ? K.rong + 0.4 : phu ? 1 : K.rongPhu, 'stroke-linecap': 'round', opacity: phu ? 0.75 : 1
+        });
+        if (k.khuat || phu) l.setAttribute('stroke-dasharray', phu ? '3 3' : K.net);
+        (k.khuat ? lopKhuat : lopThay).appendChild(l);
+      }
+    }
+    for (const p of v.diem) {
+      const q = man(p);
+      lopThay.appendChild(phanTu('circle', { cx: q[0], cy: q[1], r: K.banKinhDiem * 0.85, fill: mau }));
+    }
+    for (const g of v.vuong) {
+      const du = len(g.u), dv = len(g.v);
+      if (du < 1e-12 || dv < 1e-12) continue;
+      const s = 0.07 * hinh.banKinh;
+      const u = g.u.map(x => x / du * s), w = g.v.map(x => x / dv * s);
+      const p = [g.O.map((x, i) => x + u[i]), g.O.map((x, i) => x + u[i] + w[i]), g.O.map((x, i) => x + w[i])].map(man);
+      lopThay.appendChild(phanTu('polyline', { points: p.map(q => q.join(',')).join(' '), fill: 'none', stroke: mau, 'stroke-width': 1 }));
+    }
+    for (const c of v.cung) {
+      const du = len(c.u), dv = len(c.v);
+      if (du < 1e-12 || dv < 1e-12) continue;
+      const e1 = c.u.map(x => x / du);
+      const vt = sub(c.v, e1.map(x => x * dot(c.v, e1)));
+      const lvt = len(vt);
+      if (lvt < 1e-12) continue;
+      const e2 = vt.map(x => x / lvt);
+      const t = Math.atan2(lvt / dv, dot(c.v, e1) / dv);
+      const r = Math.min(0.16 * hinh.banKinh, 0.45 * du, 0.45 * dv);
+      const diem = [];
+      for (let i = 0; i <= 24; i++) {
+        const f = t * i / 24;
+        diem.push(man(c.O.map((x, k) => x + r * (Math.cos(f) * e1[k] + Math.sin(f) * e2[k]))));
+      }
+      lopThay.appendChild(phanTu('polyline', { points: diem.map(q => q.join(',')).join(' '), fill: 'none', stroke: mau, 'stroke-width': 1.3 }));
+      // Số đo đặt ngoài cung, trên đường phân giác
+      const O2 = man(c.O), giua = diem[12];
+      const dx = giua[0] - O2[0], dy = giua[1] - O2[1], l = Math.hypot(dx, dy) || 1;
+      chu(giua[0] + dx / l * coChu * 0.9, giua[1] + dy / l * coChu * 0.9, c.chu, { 'font-style': 'normal' });
+    }
+    for (const n of v.nhan) {
+      const q = man(n.p);
+      chu(q[0] + coChu * 0.2, q[1] - coChu * 0.65, n.chu, { 'font-style': 'italic' });
+    }
+  }
 }
 
 // Hình đang trải phẳng (core/trai-phang.js): tô từng mặt, mặt xa vẽ trước để mặt gần che đi (không cần nét khuất).

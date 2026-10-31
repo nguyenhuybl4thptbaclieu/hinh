@@ -10,7 +10,7 @@ import { lapBanLe, traiPhang, traiPhangDayDu } from './trai-phang.js';
 import { GOC_NHIN_CHUAN } from './thu-vien.js';
 import { veHinh, veTraiPhang } from './ve-svg.js';
 import { taoGLB } from './glb.js';
-import { do_, tenDo } from './do-dac.js';
+import { do_, tenDo, hinhVeDo } from './do-dac.js';
 
 // Thư viện xem 3D/AR của Google, bản cố định; chỉ tải khi học sinh mở phần 3D
 const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
@@ -18,6 +18,7 @@ const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/di
 const $ = s => document.querySelector(s);
 const svg = $('#ve');
 let doc, hinh, gocNhin;
+let doVe = []; // hình vẽ của các số đo thầy cô gửi kèm (đoạn khoảng cách, dấu góc)
 let trinhBay = null; // { kb, i }
 let trai = null;     // { muc, tren, chay }
 
@@ -43,7 +44,7 @@ function ve() {
   }
   const pc = taoPhepChieu(gocNhin);
   if (trinhBay) veHinh(svg, trinhBay.kb.hinh, pc, { kieu: ht.kieu, anPhu: ht.an_phu, ep: ht.net_chinh_tay, khung: trinhBay.kb.khung[trinhBay.i], matDay: ht.mat_day });
-  else veHinh(svg, hinh, pc, { kieu: ht.kieu, anPhu: ht.an_phu, ep: ht.net_chinh_tay, matDay: ht.mat_day });
+  else veHinh(svg, hinh, pc, { kieu: ht.kieu, anPhu: ht.an_phu, ep: ht.net_chinh_tay, matDay: ht.mat_day, doVe });
   // Trang xem không cho chọn nét: bỏ vùng bấm để chạm vào hình chỉ để xoay
   svg.querySelectorAll('[data-doan], [data-diem]').forEach(e => e.remove());
 }
@@ -224,6 +225,7 @@ $('#hien-nhan').onclick = e => {
       b.textContent = gt;
       li.append(ten, b);
       $('#ds-so-do').appendChild(li);
+      if (!m.an) doVe.push(hinhVeDo(hinh, m));
     }
     $('#the-so-do').hidden = !$('#ds-so-do').children.length;
   }

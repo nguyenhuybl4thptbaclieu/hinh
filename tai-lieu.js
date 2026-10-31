@@ -55,7 +55,8 @@ export function chuanHoa(x) {
       goc_nhin: { ...GOC_NHIN_CHUAN, ...ht.goc_nhin },
       net_chinh_tay: { ...ht.net_chinh_tay },
       an_phu: !!ht.an_phu,
-      mat_day: !!ht.mat_day
+      mat_day: !!ht.mat_day,
+      an_do: !!ht.an_do
     }
   };
 }

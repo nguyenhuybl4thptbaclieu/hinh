@@ -186,6 +186,149 @@ export function do_(hinh, m) {
   throw new Error('Không biết phép đo: ' + m.loai);
 }
 
+// ---------- Hình vẽ của phép đo ----------
+// Những gì vẽ thêm lên hình để thấy phép đo (toạ độ 3D, bộ vẽ tự chiếu và xét nét khuất):
+//   doan:  [{ a, b, loai: 'chinh' | 'de' | 'phu' }]   đoạn khoảng cách (chính), đường đề cho mà hình chưa có (đề),
+//          đường phụ dựng ra góc (phụ, nét đứt nhạt)
+//   cung:  [{ O, u, v, chu }]                   cung đánh dấu góc tại O giữa hai hướng u, v, kèm chữ số đo
+//   vuong: [{ O, u, v }]                        dấu góc vuông tại O
+//   nhan:  [{ p, chu }]                         chữ ghi giá trị (độ dài) đặt cạnh điểm p
+//   diem:  [p]                                  chân đường vuông góc (chấm nhỏ, không tên)
+// Diện tích, thể tích không có hình vẽ riêng (trả về các mảng rỗng).
+export function hinhVeDo(hinh, m) {
+  const ra = { doan: [], cung: [], vuong: [], nhan: [], diem: [] };
+  const P = t => hinh.diem[t];
+  const coDoan = (a, b) => hinh.doan.some(s => (s.a === a && s.b === b) || (s.a === b && s.b === a));
+  const duong = ds => {
+    const d = ds?.length === 1 ? hinh.duongTen?.[ds[0]] : ds;
+    // Đường đề hỏi mà chưa có trên hình (như A′B, B′C của lập phương): vẽ thêm bằng nét phụ
+    if (!coDoan(d[0], d[1])) ra.doan.push({ a: P(d[0]), b: P(d[1]), loai: 'de' });
+    return { A: P(d[0]), B: P(d[1]), u: sub(P(d[1]), P(d[0])) };
+  };
+  const matPhang = ds => { const ps = ds.map(P); return { A: ps[0], n: newell(ps), ps }; };
+  const cong = (p, v, k = 1) => [p[0] + v[0] * k, p[1] + v[1] * k, p[2] + v[2] * k];
+  const chieuLenDuong = (M, d) => cong(d.A, d.u, dot(sub(M, d.A), d.u) / dot(d.u, d.u));
+  const chieuLenMat = (M, mp) => cong(M, mp.n, -dot(sub(M, mp.A), mp.n));
+  const giaTriNgan = x => vietTheoA(x).split(' ≈ ')[0].replace(/^≈ /, '≈ ');
+  // Chân H nằm ngoài đoạn AB của đường: vẽ thêm phần kéo dài tới H
+  const keoDai = (d, H) => {
+    const t = dot(sub(H, d.A), d.u) / dot(d.u, d.u);
+    if (t < -1e-9) ra.doan.push({ a: d.A, b: H, loai: 'phu' });
+    else if (t > 1 + 1e-9) ra.doan.push({ a: d.B, b: H, loai: 'phu' });
+  };
+  const doanKC = (X, Y) => {
+    ra.doan.push({ a: X, b: Y, loai: 'chinh' });
+    ra.nhan.push({ p: cong(X, sub(Y, X), 0.5), chu: giaTriNgan(len(sub(Y, X))) });
+  };
+  const gocChu = t => { const d = t * DO; return Math.abs(d - Math.round(d)) < 1e-6 ? `${Math.round(d)}°` : `${soVN(d, 1)}°`; };
+
+  switch (m.loai) {
+    case 'do-dai': doanKC(P(m.a), P(m.b)); break;
+    case 'kc-diem-duong': {
+      const M = P(m.diem), d = duong(m.d1), H = chieuLenDuong(M, d);
+      doanKC(M, H);
+      keoDai(d, H);
+      ra.diem.push(H);
+      ra.vuong.push({ O: H, u: sub(M, H), v: len(sub(d.A, H)) > 1e-9 ? sub(d.A, H) : sub(d.B, H) });
+      break;
+    }
+    case 'kc-diem-mat': {
+      const M = P(m.diem), mp = matPhang(m.mat), H = chieuLenMat(M, mp);
+      doanKC(M, H);
+      ra.diem.push(H);
+      // Nối H với một điểm của mặt (để thấy H nằm trong mặt) và đánh dấu góc vuông
+      const K = mp.ps.reduce((x, y) => (len(sub(y, H)) > len(sub(x, H)) ? y : x));
+      if (len(sub(K, H)) > 1e-9) { ra.doan.push({ a: H, b: K, loai: 'phu' }); ra.vuong.push({ O: H, u: sub(M, H), v: sub(K, H) }); }
+      break;
+    }
+    case 'kc-hai-duong': {
+      const d1 = duong(m.d1), d2 = duong(m.d2), w = cross(d1.u, d2.u);
+      let X, Y;
+      if (len(w) < 1e-9 * len(d1.u) * len(d2.u)) { X = d2.A; Y = chieuLenDuong(d2.A, d1); }
+      else {
+        // Đoạn vuông góc chung XY: X trên d1, Y trên d2
+        const r = sub(d1.A, d2.A), a = dot(d1.u, d1.u), b = dot(d1.u, d2.u), c = dot(d2.u, d2.u), d = dot(d1.u, r), e = dot(d2.u, r);
+        const D = a * c - b * b, s = (b * e - c * d) / D, t = (a * e - b * d) / D;
+        X = cong(d1.A, d1.u, s); Y = cong(d2.A, d2.u, t);
+      }
+      doanKC(X, Y);
+      keoDai(d1, X); keoDai(d2, Y);
+      ra.diem.push(X, Y);
+      ra.vuong.push({ O: X, u: sub(Y, X), v: d1.u }, { O: Y, u: sub(X, Y), v: d2.u });
+      break;
+    }
+    case 'goc-ba-diem': {
+      const [A, B, C] = m.diem.map(P);
+      ra.cung.push({ O: B, u: sub(A, B), v: sub(C, B), chu: gocChu(Math.acos(Math.max(-1, Math.min(1, dot(sub(A, B), sub(C, B)) / (len(sub(A, B)) * len(sub(C, B)))))) ) });
+      break;
+    }
+    case 'goc-hai-duong': {
+      const d1 = duong(m.d1), d2 = duong(m.d2);
+      let O, u = d1.u, v = d2.u;
+      const w = cross(u, v);
+      if (len(w) < 1e-9 * len(u) * len(v)) break; // song song: góc 0
+      const r = sub(d1.A, d2.A), a = dot(u, u), b = dot(u, v), c = dot(v, v), dd = dot(u, r), e = dot(v, r);
+      const D = a * c - b * b, s = (b * e - c * dd) / D, t = (a * e - b * dd) / D;
+      const X = cong(d1.A, u, s), Y = cong(d2.A, v, t);
+      if (len(sub(X, Y)) < 1e-7 * (1 + hinh.banKinh)) { O = X; keoDai(d1, X); keoDai(d2, X); }
+      else {
+        // Chéo nhau: qua một điểm của d1 kẻ đường song song d2 (nét phụ) rồi đo góc ở đó
+        O = d1.A;
+        ra.doan.push({ a: O, b: cong(O, v, 1), loai: 'phu' });
+      }
+      if (dot(u, v) < 0) v = v.map(x => -x); // góc nhọn
+      ra.cung.push({ O, u, v, chu: gocChu(Math.acos(Math.min(1, Math.abs(dot(u, v)) / (len(u) * len(v))))) });
+      break;
+    }
+    case 'goc-duong-mat': {
+      const d = duong(m.d1), mp = matPhang(m.mat);
+      const k = dot(d.u, mp.n);
+      if (Math.abs(k) < 1e-12) break; // song song mặt: góc 0
+      // O = giao điểm của đường với mặt; H = hình chiếu của đầu xa O lên mặt
+      const O = cong(d.A, d.u, -dot(sub(d.A, mp.A), mp.n) / k);
+      const M = len(sub(d.A, O)) > len(sub(d.B, O)) ? d.A : d.B;
+      const H = chieuLenMat(M, mp);
+      keoDai(d, O);
+      ra.diem.push(O, H);
+      if (len(sub(H, O)) < 1e-9) { ra.vuong.push({ O, u: sub(M, O), v: sub(mp.ps[0], O) }); break; } // vuông góc mặt
+      ra.doan.push({ a: M, b: H, loai: 'phu' }, { a: O, b: H, loai: 'phu' });
+      ra.vuong.push({ O: H, u: sub(M, H), v: sub(O, H) });
+      ra.cung.push({ O, u: sub(M, O), v: sub(H, O), chu: gocChu(Math.acos(Math.min(1, dot(sub(M, O), sub(H, O)) / (len(sub(M, O)) * len(sub(H, O)))))) });
+      break;
+    }
+    case 'goc-hai-mat': {
+      const p1 = matPhang(m.mat), p2 = matPhang(m.mat2), l = cross(p1.n, p2.n);
+      if (len(l) < 1e-9) break; // song song: góc 0
+      const L = scaleV(l, 1 / len(l));
+      // Một điểm X trên giao tuyến, gần chỗ hai mặt gặp nhau trên hình: chiếu tâm hai mặt lên giao tuyến
+      const G = centroid([...p1.ps, ...p2.ps]);
+      const X0 = diemChung(p1, p2, L);
+      const X = cong(X0, L, dot(sub(G, X0), L));
+      // Trong mỗi mặt, hướng vuông góc giao tuyến, quay về phía phần mặt có điểm của đề
+      const huong = p => { let w = cross(p.n, L); const g = centroid(p.ps); if (dot(sub(g, X), w) < 0) w = scaleV(w, -1); return w; };
+      const w1 = huong(p1), w2 = huong(p2), s = 0.45 * hinh.banKinh;
+      const doDai = s * 0.9;
+      ra.doan.push({ a: cong(X, L, -doDai), b: cong(X, L, doDai), loai: 'phu' });
+      ra.doan.push({ a: X, b: cong(X, w1, s), loai: 'phu' }, { a: X, b: cong(X, w2, s), loai: 'phu' });
+      ra.vuong.push({ O: X, u: w1, v: L }, { O: X, u: w2, v: L });
+      let t = Math.acos(Math.max(-1, Math.min(1, dot(w1, w2))));
+      ra.cung.push({ O: X, u: w1, v: w2, chu: gocChu(t > Math.PI / 2 ? Math.PI - t : t) });
+      break;
+    }
+  }
+  return ra;
+}
+
+const scaleV = (v, k) => [v[0] * k, v[1] * k, v[2] * k];
+// Một điểm chung của hai mặt phẳng (giao tuyến hướng L)
+function diemChung(p1, p2, L) {
+  const d1 = dot(p1.n, p1.A), d2 = dot(p2.n, p2.A);
+  // X = (d1 (n2 × L) + d2 (L × n1)) / (L · (n1 × n2)), L = n1 × n2 (đã chuẩn hoá)
+  const den = dot(L, cross(p1.n, p2.n));
+  const a = cross(p2.n, L), b = cross(L, p1.n);
+  return [0, 1, 2].map(i => (d1 * a[i] + d2 * b[i]) / den);
+}
+
 // Tên phép đo kiểu SGK: "d(A, (SCD))", "(SC, (ABCD))", "V(S.ABCD)"...
 export function tenDo(m, hinh) {
   const n = t => String(t).replace(/'/g, '′');
