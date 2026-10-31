@@ -10,6 +10,7 @@ import { lapBanLe, traiPhang, traiPhangDayDu } from './trai-phang.js';
 import { GOC_NHIN_CHUAN } from './thu-vien.js';
 import { veHinh, veTraiPhang } from './ve-svg.js';
 import { taoGLB } from './glb.js';
+import { do_, tenDo } from './do-dac.js';
 
 // Thư viện xem 3D/AR của Google, bản cố định; chỉ tải khi học sinh mở phần 3D
 const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
@@ -213,6 +214,19 @@ $('#hien-nhan').onclick = e => {
   gocNhin = { ...GOC_NHIN_CHUAN, ...doc.hien_thi.goc_nhin };
   $('#ten').textContent = doc.meta.ten;
   document.title = doc.meta.ten + ' · Xem hình không gian';
+  // Số đo (chỉ có khi thầy cô chọn gửi kèm)
+  if (doc.so_do.length) {
+    for (const m of doc.so_do) {
+      let gt;
+      try { gt = do_(hinh, m).chu; } catch { continue; }
+      const li = document.createElement('li'), ten = document.createElement('span'), b = document.createElement('b');
+      ten.textContent = tenDo(m, hinh);
+      b.textContent = gt;
+      li.append(ten, b);
+      $('#ds-so-do').appendChild(li);
+    }
+    $('#the-so-do').hidden = !$('#ds-so-do').children.length;
+  }
   ve();
 })();
 

@@ -45,6 +45,9 @@
   .dong { display: flex; align-items: center; gap: 10px; }
   .dong input[type=range] { flex: 1; accent-color: var(--nhan); }
   .ghi { font-size: 12px; color: var(--nhat); text-align: center; margin: 0; }
+  .ds-so-do { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .ds-so-do li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 14px; color: var(--mo); }
+  .ds-so-do b { color: var(--chu); font: 600 16px "Times New Roman", Times, serif; text-align: right; }
   .loi { margin: 40px 20px; padding: 16px; background: #fdeaea; color: #a1111d; border-radius: 14px; line-height: 1.5; }
   .cho { margin: auto; color: var(--nhat); }
   @media (min-width: 900px) {
@@ -95,6 +98,10 @@
         <button data-kieu="net">Chỉ nét</button>
       </div>
       <button id="hien-nhan" class="bat">Tên điểm</button>
+    </div>
+    <div id="the-so-do" class="thanh" hidden>
+      <div class="ten-app">SỐ ĐO</div>
+      <ul id="ds-so-do" class="ds-so-do"></ul>
     </div>
     <p class="ghi" id="ghi-ve">Kéo trên hình để xoay.</p>
     <p class="ghi" id="ghi-3d" hidden>Một ngón để xoay, hai ngón để phóng to. Xem AR: Android cần Chrome và ARCore, iPhone dùng Safari.</p>

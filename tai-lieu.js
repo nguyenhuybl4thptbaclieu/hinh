@@ -4,6 +4,7 @@
 //   meta: { ten, lop, dang, the: [], co_thiet_dien, tao_luc, sua_luc },
 //   goc: { loai: 'chop' | 'lang-tru', tham_so: {...} },
 //   buoc_dung: [],                       // điểm, mặt phẳng, thiết diện... (từ bước 4)
+//   so_do: [],                           // các phép đo: độ dài, góc, khoảng cách, diện tích, thể tích (core/do-dac.js)
 //   hien_thi: { kieu, goc_nhin: {xoay, goc, heSo}, net_chinh_tay: {idĐoạn: 'lien'|'khuat'}, an_phu, mat_day (vẽ mặt phẳng chứa đáy) }
 // }
 
@@ -27,6 +28,7 @@ export function taiLieuTuMau(mau, meta = {}) {
     meta: { ten: mau.ten, lop: null, dang: null, the: [mau.loai], co_thiet_dien: false, ...meta },
     goc: { loai: mau.loai, tham_so: structuredClone(mau.ts) },
     buoc_dung: [],
+    so_do: [],
     hien_thi: { kieu: 'bai-giang', goc_nhin: { ...GOC_NHIN_CHUAN }, net_chinh_tay: {}, an_phu: false, mat_day: false }
   };
 }
@@ -47,6 +49,7 @@ export function chuanHoa(x) {
     meta: { ten: 'Hình chưa đặt tên', lop: null, dang: null, the: [], ...x.meta, co_thiet_dien: coThietDien(x) },
     goc: { loai: g.loai, tham_so: g.tham_so },
     buoc_dung: Array.isArray(x.buoc_dung) ? x.buoc_dung : [],
+    so_do: Array.isArray(x.so_do) ? x.so_do.filter(m => m && typeof m === 'object' && typeof m.loai === 'string') : [],
     hien_thi: {
       kieu: ht.kieu === 'de' ? 'de' : 'bai-giang',
       goc_nhin: { ...GOC_NHIN_CHUAN, ...ht.goc_nhin },

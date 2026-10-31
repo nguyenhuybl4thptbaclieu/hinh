@@ -6,12 +6,14 @@ import { chuanHoa, PHIEN_BAN } from './tai-lieu.js';
 
 const TIEN_TO = 'h1.'; // đổi định dạng sau này thì đổi tiền tố
 
-export function goiChiaSe(doc) {
+// kemSoDo: gửi kèm các phép đo (thường là đáp số của bài, nên mặc định không gửi)
+export function goiChiaSe(doc, { kemSoDo = false } = {}) {
   const ht = doc.hien_thi;
   return {
     t: doc.meta.ten,
     g: doc.goc,
     b: doc.buoc_dung,
+    ...(kemSoDo && doc.so_do?.length ? { s: doc.so_do } : {}),
     h: { k: ht.kieu, n: ht.goc_nhin, c: ht.net_chinh_tay, p: ht.an_phu ? 1 : 0, d: ht.mat_day ? 1 : 0 }
   };
 }
@@ -25,6 +27,7 @@ export function moGoi(goi) {
     meta: { ten: String(goi.t || 'Hình không gian').slice(0, 200) },
     goc: goi.g,
     buoc_dung: Array.isArray(goi.b) ? goi.b : [],
+    so_do: Array.isArray(goi.s) ? goi.s : [],
     hien_thi: { kieu: h.k, goc_nhin: h.n, net_chinh_tay: h.c, an_phu: !!h.p, mat_day: !!h.d }
   });
 }
@@ -45,8 +48,8 @@ const tuBase64Url = s => {
 };
 
 // Tài liệu hình → chuỗi đặt sau dấu # (nén deflate rồi base64 an toàn cho URL)
-export async function maHoa(doc) {
-  const json = new TextEncoder().encode(JSON.stringify(goiChiaSe(doc)));
+export async function maHoa(doc, tuyChon = {}) {
+  const json = new TextEncoder().encode(JSON.stringify(goiChiaSe(doc, tuyChon)));
   return TIEN_TO + sangBase64Url(await nen(json, new CompressionStream('deflate-raw')));
 }
 
