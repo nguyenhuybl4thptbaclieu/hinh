@@ -100,9 +100,9 @@ export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop 
     const cs = { 'font-size': coChu * 0.72, fill: K.chu };
     for (const x of RX) {
       phanTu('line', { x1: sx(x), y1: sy(oy) - 3, x2: sx(x), y2: sy(oy) + 3, stroke: K.truc, 'stroke-width': 1 }, truc);
-      // Sát trục tung thì đẩy sang bên cho khỏi đè chữ O
-      const satO = Math.abs(x - ox) * tl < coChu * 1.2;
-      chu(truc, sx(x) + (satO ? Math.sign(x - ox) * coChu * 0.45 : 0), sy(oy) + coChu * 0.8, viX(x), { ...cs, ...(satO ? { 'text-anchor': x < ox ? 'end' : 'start' } : {}) });
+      // Sát trục tung thì ghi lên phía trên trục hoành, lệch ra ngoài, cho khỏi đè chữ O
+      const satO = Math.abs(x - ox) * tl < coChu * 1.6;
+      chu(truc, sx(x) + (satO ? Math.sign(x - ox) * coChu * 0.2 : 0), sy(oy) + (satO ? -coChu * 0.6 : coChu * 0.8), viX(x), { ...cs, ...(satO ? { 'text-anchor': x < ox ? 'end' : 'start' } : {}) });
     }
     for (const y of RY) {
       phanTu('line', { x1: sx(ox) - 3, y1: sy(y), x2: sx(ox) + 3, y2: sy(y), stroke: K.truc, 'stroke-width': 1 }, truc);
