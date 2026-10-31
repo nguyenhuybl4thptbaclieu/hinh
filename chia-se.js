@@ -14,7 +14,7 @@ export function goiChiaSe(doc, { kemSoDo = false } = {}) {
     g: doc.goc,
     b: doc.buoc_dung,
     ...(kemSoDo && doc.so_do?.length ? { s: doc.so_do } : {}),
-    h: { k: ht.kieu, n: ht.goc_nhin, c: ht.net_chinh_tay, p: ht.an_phu ? 1 : 0, d: ht.mat_day ? 1 : 0, ...(doc.goc.loai === 'do-thi' ? { t: ht.bbt === false ? 0 : 1 } : {}) }
+    h: { k: ht.kieu, n: ht.goc_nhin, c: ht.net_chinh_tay, p: ht.an_phu ? 1 : 0, d: ht.mat_day ? 1 : 0, ...(doc.goc.loai === 'do-thi' ? { t: ht.bbt === false ? 0 : 1, ...(ht.gio?.length ? { o: ht.gio } : {}) } : {}) }
   };
 }
 
@@ -28,7 +28,7 @@ export function moGoi(goi) {
     goc: goi.g,
     buoc_dung: Array.isArray(goi.b) ? goi.b : [],
     so_do: Array.isArray(goi.s) ? goi.s : [],
-    hien_thi: { kieu: h.k, goc_nhin: h.n, net_chinh_tay: h.c, an_phu: !!h.p, mat_day: !!h.d, ...(h.t !== undefined ? { bbt: !!h.t } : {}) }
+    hien_thi: { kieu: h.k, goc_nhin: h.n, net_chinh_tay: h.c, an_phu: !!h.p, mat_day: !!h.d, ...(h.t !== undefined ? { bbt: !!h.t } : {}), gio: h.o }
   });
 }
 

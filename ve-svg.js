@@ -176,7 +176,8 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
     const p = man(p3);
     const moi = laMoi(ten);
     if (diemChon === ten) lop.chon.appendChild(phanTu('circle', { cx: p[0], cy: p[1], r: 9, fill: 'rgba(0, 113, 227, 0.18)', stroke: '#0071e3', 'stroke-width': 1.5 }));
-    lop.diem.appendChild(phanTu('circle', { cx: p[0], cy: p[1], r: K.banKinhDiem + (moi ? 1.2 : 0), fill: moi ? K.moi : K.diem }));
+    // data-ten: để xuất TikZ đặt tên toạ độ (\coordinate (A)) cho điểm
+    lop.diem.appendChild(phanTu('circle', { cx: p[0], cy: p[1], r: K.banKinhDiem + (moi ? 1.2 : 0), fill: moi ? K.moi : K.diem, 'data-ten': ten }));
     // Vùng bấm quanh điểm (nằm trên cùng để bấm trúng điểm dễ hơn trúng nét)
     const vb = phanTu('circle', { cx: p[0], cy: p[1], r: 10, fill: 'transparent', 'data-diem': ten });
     vb.style.cursor = 'pointer';

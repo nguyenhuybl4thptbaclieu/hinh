@@ -25,6 +25,7 @@ let trinhBay = null; // { kb, i }
 let trai = null;     // { muc, tren, chay }
 let doThi = null;    // đồ thị hàm số (thay cho hình không gian)
 let coBBT = true;    // học sinh tự bật, tắt bảng biến thiên
+let gioDoThi = new Set(); // điểm đang bật đường gióng (học sinh bấm vào điểm để bật, tắt)
 
 function baoLoi(chu) {
   $('#ten').textContent = 'Không mở được hình';
@@ -43,7 +44,7 @@ function ve() {
     const lop = trinhBay ? trinhBay.kb.khung[trinhBay.i].lop : null;
     const hien = coBBT && (!lop || lop.has('bbt'));
     $('#bbt').toggleAttribute('hidden', !hien);
-    veDoThi(svg, doThi, { kieu: ht.kieu, lop });
+    veDoThi(svg, doThi, { kieu: ht.kieu, lop, gio: gioDoThi });
     if (hien) veBBT($('#bbt'), bangBienThien(doThi), { kieu: ht.kieu });
     return;
   }
@@ -58,7 +59,7 @@ function ve() {
   if (trinhBay) veHinh(svg, trinhBay.kb.hinh, pc, { kieu: ht.kieu, anPhu: ht.an_phu, ep: ht.net_chinh_tay, khung: trinhBay.kb.khung[trinhBay.i], matDay: ht.mat_day });
   else veHinh(svg, hinh, pc, { kieu: ht.kieu, anPhu: ht.an_phu, ep: ht.net_chinh_tay, matDay: ht.mat_day, doVe });
   // Trang xem không cho chọn nét: bỏ vùng bấm để chạm vào hình chỉ để xoay
-  svg.querySelectorAll('[data-doan], [data-diem]').forEach(e => e.remove());
+  svg.querySelectorAll('[data-doan], [data-diem]:not([data-gio])').forEach(e => e.remove());
 }
 
 function denKhung(i) {
@@ -232,6 +233,13 @@ $('#hien-nhan').onclick = e => {
     $('#chon-che-do').hidden = $('#trai-phang').hidden = $('#goc-chuan').hidden = true;
     $('#nut-bbt').hidden = false;
     coBBT = doc.hien_thi.bbt !== false;
+    gioDoThi = new Set(doc.hien_thi.gio);
+    svg.addEventListener('click', e => {
+      const k = e.target.dataset?.gio;
+      if (!k) return;
+      gioDoThi.has(k) ? gioDoThi.delete(k) : gioDoThi.add(k);
+      ve();
+    });
     $('#nut-bbt').classList.toggle('bat', coBBT);
     $('#trinh-bay').textContent = '▶ Vẽ từng bước';
     $('#ghi-ve').textContent = doThi.congThuc;

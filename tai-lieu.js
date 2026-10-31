@@ -60,7 +60,8 @@ export function chuanHoa(x) {
       an_phu: !!ht.an_phu,
       mat_day: !!ht.mat_day,
       an_do: !!ht.an_do,
-      bbt: ht.bbt === undefined ? g.loai === 'do-thi' : !!ht.bbt // đồ thị: hiện bảng biến thiên
+      bbt: ht.bbt === undefined ? g.loai === 'do-thi' : !!ht.bbt, // đồ thị: hiện bảng biến thiên
+      gio: Array.isArray(ht.gio) ? ht.gio.filter(k => typeof k === 'string') : [] // đồ thị: điểm đang bật đường gióng
     }
   };
 }

@@ -26,14 +26,15 @@ const chu = (cha, x, y, noiDung, attr = {}) => {
 let soClip = 0;
 
 // Vẽ đồ thị vào svg (chiếm cả khung). lop: các lớp đang hiện (trình chiếu từng bước), null là tất cả.
-export function veDoThi(svg, dt, { kieu = 'bai-giang', coChu = 18, lop = null } = {}) {
+export function veDoThi(svg, dt, { kieu = 'bai-giang', coChu = 18, lop = null, gio = null } = {}) {
   const W = svg.clientWidth || 800, H = svg.clientHeight || 520;
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.replaceChildren();
-  veDoThiVao(svg, dt, W, H, { kieu, coChu, lop });
+  veDoThiVao(svg, dt, W, H, { kieu, coChu, lop, gio });
 }
 
-export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop = null } = {}) {
+// gio: tập khoá (khoaGio) các điểm đang bật đường gióng xuống hai trục
+export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop = null, gio = null } = {}) {
   const K = KIEU_DO_THI[kieu] || KIEU_DO_THI['bai-giang'];
   const co = x => !lop || lop.has(x);
   const g = phanTu('g', {}, cha);
@@ -70,22 +71,42 @@ export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop 
     let buocX = buocDep(26 / tl);
     if (dt.luongGiac) { buocX = Math.min(PI_2, dt.luongGiac.T / 4); while (buocX * tl < coChu * 2.6) buocX *= 2; }
     const buocY = buocDep(26 / tl);
-    const nho = { 'font-size': coChu * 0.62, fill: K.luoi };
-    // Chỗ đã có số ở chân đường gióng (điểm đặc biệt) thì vạch không ghi số nữa cho khỏi trùng
-    const diemGio = co('diem') ? [...dt.cucTri, ...dt.dacBiet] : [];
-    const trungX = x => diemGio.some(p => Math.abs(p.x - x) * tl < coChu * 1.1);
-    const trungY = y => diemGio.some(p => Math.abs(p.y - y) * tl < coChu * 0.8);
+    // Vạch chia để thấy đơn vị, không ghi số; số chỉ ghi ở các toạ độ liên quan (xem bên dưới)
     for (let i = Math.ceil(X0 / buocX); i * buocX <= X1; i++) {
-      const x = i * buocX;
-      if (Math.abs(x) < 1e-9) continue;
-      phanTu('line', { x1: sx(x), y1: sy(oy) - 3, x2: sx(x), y2: sy(oy) + 3, stroke: K.truc, 'stroke-width': 1 }, truc);
-      if (!trungX(x)) chu(truc, sx(x), sy(oy) + coChu * 0.75, dt.luongGiac ? depPi(x) : dep(x), nho);
+      if (i) phanTu('line', { x1: sx(i * buocX), y1: sy(oy) - 3, x2: sx(i * buocX), y2: sy(oy) + 3, stroke: K.truc, 'stroke-width': 1 }, truc);
     }
     for (let i = Math.ceil(Y0 / buocY); i * buocY <= Y1; i++) {
-      const y = i * buocY;
-      if (Math.abs(y) < 1e-9) continue;
+      if (i) phanTu('line', { x1: sx(ox) - 3, y1: sy(i * buocY), x2: sx(ox) + 3, y2: sy(i * buocY), stroke: K.truc, 'stroke-width': 1 }, truc);
+    }
+
+    // Toạ độ liên quan: hoành độ, tung độ của cực trị, điểm đặc biệt, giao với hai trục, tiệm cận, tâm đối xứng.
+    // Lượng giác thêm các mốc theo π trên trục hoành. Hai số quá sát nhau thì bỏ số sau.
+    const vaoKhungX = x => x > X0 && x < X1 && Math.abs(x - ox) * tl > coChu * 0.5;
+    const vaoKhungY = y => y > Y0 && y < Y1 && Math.abs(y - oy) * tl > coChu * 0.6;
+    const RX = [], RY = [];
+    const themX = (x, lopCan) => { if (co(lopCan) && Number.isFinite(x) && vaoKhungX(x) && !RX.some(v => Math.abs(v - x) * tl < coChu * 1.3)) RX.push(x); };
+    const themY = (y, lopCan) => { if (co(lopCan) && Number.isFinite(y) && vaoKhungY(y) && !RY.some(v => Math.abs(v - y) * tl < coChu * 0.85)) RY.push(y); };
+    const diemLq = [...dt.cucTri, ...dt.dacBiet].filter(p => p.x >= X0 && p.x <= X1 && p.y >= Y0 && p.y <= Y1);
+    for (const p of diemLq) { themX(p.x, 'diem'); themY(p.y, 'diem'); }
+    if (!dt.luongGiac) for (const x of dt.giaoOx) if (!/,/.test(dep(x))) themX(x, 'diem');
+    if (dt.giaoOy !== null) themY(dt.giaoOy, 'diem');
+    if (dt.doiXung?.loai === 'tam') { themX(dt.doiXung.x, 'diem'); themY(dt.doiXung.y, 'diem'); }
+    for (const x of dt.tcd) themX(x, 'tiem-can');
+    for (const y of dt.tcn) themY(y, 'tiem-can');
+    if (dt.luongGiac) for (let i = Math.ceil(X0 / buocX); i * buocX <= X1; i++) themX(i * buocX, 'truc');
+    // Chưa có số nào trên một trục (bước đầu khi vẽ từng bước): ghi số 1 để thấy đơn vị
+    if (!RX.length) themX(dt.luongGiac ? buocX : 1, 'truc');
+    if (!RY.length) themY(1, 'truc');
+    const cs = { 'font-size': coChu * 0.72, fill: K.chu };
+    for (const x of RX) {
+      phanTu('line', { x1: sx(x), y1: sy(oy) - 3, x2: sx(x), y2: sy(oy) + 3, stroke: K.truc, 'stroke-width': 1 }, truc);
+      // Sát trục tung thì đẩy sang bên cho khỏi đè chữ O
+      const satO = Math.abs(x - ox) * tl < coChu * 1.2;
+      chu(truc, sx(x) + (satO ? Math.sign(x - ox) * coChu * 0.45 : 0), sy(oy) + coChu * 0.8, viX(x), { ...cs, ...(satO ? { 'text-anchor': x < ox ? 'end' : 'start' } : {}) });
+    }
+    for (const y of RY) {
       phanTu('line', { x1: sx(ox) - 3, y1: sy(y), x2: sx(ox) + 3, y2: sy(y), stroke: K.truc, 'stroke-width': 1 }, truc);
-      if (!trungY(y)) chu(truc, sx(ox) - coChu * 0.45, sy(y), dep(y), { ...nho, 'text-anchor': 'end' });
+      chu(truc, sx(ox) - coChu * 0.45, sy(y), dep(y), { ...cs, 'text-anchor': 'end' });
     }
   }
 
@@ -125,38 +146,39 @@ export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop 
       truoc = [x, y];
     }
     ngat();
-    const nhom = phanTu('g', { fill: 'none', stroke: K.thi, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
+    // Đồ thị nét đậm (dày hơn trục, tiệm cận) cho nổi trên hình
+    const nhom = phanTu('g', { fill: 'none', stroke: K.thi, 'stroke-width': 2.4, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, g);
     for (const d of doan) phanTu('polyline', { points: d.map(([x, y]) => `${sx(x).toFixed(2)},${sy(y).toFixed(2)}`).join(' ') }, nhom);
   }
 
   if (co('diem')) {
     const lopD = phanTu('g', {}, g);
+    const lopBam = phanTu('g', {}, g); // vùng bấm (trên cùng), xuất ảnh thì bỏ
     const trong = (x, y) => x >= X0 && x <= X1 && y >= Y0 && y <= Y1;
-    const gio = (x, y) => {
-      // Đường gióng nét đứt xuống hai trục, ghi toạ độ ở chân
-      const g2 = { stroke: K.gio, 'stroke-width': 0.9, 'stroke-dasharray': '3 3' };
-      if (Math.abs(y - oy) > 1e-9) phanTu('line', { x1: sx(x), y1: sy(y), x2: sx(x), y2: sy(oy), ...g2 }, lopD);
-      if (Math.abs(x - ox) > 1e-9) phanTu('line', { x1: sx(x), y1: sy(y), x2: sx(ox), y2: sy(y), ...g2 }, lopD);
-      const cs = { 'font-size': coChu * 0.72, fill: K.chu };
-      if (Math.abs(x - ox) > 1e-9) chu(lopD, sx(x), sy(oy) + (y >= oy ? 1 : -1) * coChu * 0.8, viX(x), cs);
-      if (Math.abs(y - oy) > 1e-9) chu(lopD, sx(ox) + (x >= ox ? -1 : 1) * coChu * 0.4, sy(y), dep(y), { ...cs, 'text-anchor': x >= ox ? 'end' : 'start' });
-    };
-    const cham = (x, y) => phanTu('circle', { cx: sx(x), cy: sy(y), r: 3, fill: K.diem }, lopD);
-    for (const c of dt.cucTri) if (trong(c.x, c.y)) { gio(c.x, c.y); cham(c.x, c.y); }
-    for (const p of dt.dacBiet) if (trong(p.x, p.y)) { gio(p.x, p.y); cham(p.x, p.y); }
-    if (!dt.luongGiac) {
-      // Giao điểm với Ox: chỉ ghi số khi là số đẹp (nghiệm lẻ như −1,879 thì chỉ chấm điểm, như SGK)
-      for (const x of dt.giaoOx) if (trong(x, 0)) {
-        cham(x, 0);
-        const so = dep(x);
-        if (!/,/.test(so) && !dt.cucTri.some(c => Math.abs(c.x - x) < 1e-9) && Math.abs(x - Math.round(x)) > 1e-9) {
-          // Ghi phía trên trục; sát trục tung thì đẩy sang bên kia để không đè chữ O
-          const satO = Math.abs(x) * tl < coChu * 1.6;
-          chu(lopD, sx(x) + (satO ? Math.sign(x) * coChu * 0.6 : 0), sy(0) - coChu * 0.45, so,
-            { 'font-size': coChu * 0.72, fill: K.chu, ...(satO ? { 'text-anchor': x < 0 ? 'end' : 'start' } : {}) });
-        }
+    // Đường gióng nét đứt từ điểm xuống hai trục: chỉ vẽ ở điểm thầy đã bấm (gio: tập khoá điểm)
+    const g2 = { stroke: K.gio, 'stroke-width': 0.9, 'stroke-dasharray': '3 3' };
+    const daCham = new Set();
+    const cham = (x, y) => {
+      const khoa = khoaGio(x, y);
+      if (daCham.has(khoa)) return; // giao Oy trùng tâm đối xứng...
+      daCham.add(khoa);
+      if (gio?.has(khoa)) {
+        if (Math.abs(y - oy) > 1e-9) phanTu('line', { x1: sx(x), y1: sy(y), x2: sx(x), y2: sy(oy), ...g2 }, lopD);
+        if (Math.abs(x - ox) > 1e-9) phanTu('line', { x1: sx(x), y1: sy(y), x2: sx(ox), y2: sy(y), ...g2 }, lopD);
       }
-      if (dt.giaoOy !== null && trong(0, dt.giaoOy)) cham(0, dt.giaoOy);
+      phanTu('circle', { cx: sx(x), cy: sy(y), r: 3, fill: K.diem }, lopD);
+      const vb = phanTu('circle', { cx: sx(x), cy: sy(y), r: 11, fill: 'transparent', 'data-diem': khoa, 'data-gio': khoa }, lopBam);
+      vb.style.cursor = 'pointer';
+      vb.style.pointerEvents = 'all';
+      const t = phanTu('title', {}, vb);
+      t.textContent = `(${viX(x)}; ${dep(y)}): bấm để ${gio?.has(khoa) ? 'ẩn' : 'hiện'} đường gióng`;
+    };
+    for (const c of dt.cucTri) if (trong(c.x, c.y)) cham(c.x, c.y);
+    for (const p of dt.dacBiet) if (trong(p.x, p.y)) cham(p.x, p.y);
+    if (!dt.luongGiac) {
+      // Giao điểm với Ox (nghiệm lẻ như −1,879 thì chỉ chấm điểm, không ghi số, như SGK)
+      for (const x of dt.giaoOx) if (trong(x, 0) && !dt.cucTri.some(c => Math.abs(c.x - x) < 1e-9)) cham(x, 0);
+      if (dt.giaoOy !== null && trong(0, dt.giaoOy) && !dt.cucTri.some(c => Math.abs(c.x) < 1e-9)) cham(0, dt.giaoOy);
     }
     if (dt.doiXung?.loai === 'tam' && trong(dt.doiXung.x, dt.doiXung.y)) {
       cham(dt.doiXung.x, dt.doiXung.y);
@@ -164,6 +186,9 @@ export function veDoThiVao(cha, dt, W, H, { kieu = 'bai-giang', coChu = 18, lop 
     }
   }
 }
+
+// Khoá của một điểm trên đồ thị (để nhớ điểm nào đang bật đường gióng)
+export const khoaGio = (x, y) => `${+x.toFixed(6)};${+y.toFixed(6)}`;
 
 // Bước chia đẹp (1, 2, 5 × 10ⁿ) không nhỏ hơn d
 function buocDep(d) {
