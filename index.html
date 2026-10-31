@@ -31,6 +31,10 @@
   .the { flex: 1; min-height: 260px; background: var(--o); border-radius: 16px; box-shadow: var(--bong); overflow: hidden; position: relative; display: flex; }
   #ve { flex: 1; width: 100%; height: 100%; touch-action: none; display: block; }
   #ve text { user-select: none; pointer-events: none; }
+  /* Đồ thị: hình ở trên, bảng biến thiên ở dưới */
+  .do-thi #the-ve { flex-direction: column; }
+  .do-thi #ve { touch-action: auto; min-height: 0; }
+  #bbt { width: 100%; height: 34%; min-height: 120px; max-height: 240px; flex: none; display: block; border-top: 1px solid #ececf0; }
   model-viewer { flex: 1; width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(#fbfbfd, #eef0f4); }
   .nhan-3d { background: rgba(255, 255, 255, 0.85); border: 0; border-radius: 6px; padding: 1px 6px; font: italic 600 15px "Times New Roman", Times, serif; color: #1d1d1f; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); pointer-events: none; }
   .an-nhan .nhan-3d { display: none; }
@@ -71,13 +75,14 @@
 </header>
 
 <main id="noi-dung">
-  <div class="the" id="the-ve"><svg id="ve" aria-label="Hình vẽ"></svg></div>
+  <div class="the" id="the-ve"><svg id="ve" aria-label="Hình vẽ"></svg><svg id="bbt" aria-label="Bảng biến thiên" hidden></svg></div>
   <div class="the" id="the-3d" hidden><p class="cho" id="cho-3d">Đang tải phần xem 3D…</p></div>
   <div class="ben">
     <div id="cc-ve" class="cong-cu">
       <button id="trinh-bay">▶ Dựng từng bước</button>
       <button id="trai-phang">Trải phẳng</button>
       <button id="goc-chuan">Góc chuẩn</button>
+      <button id="nut-bbt" hidden>Bảng biến thiên</button>
     </div>
     <div id="thanh-tb" class="thanh" hidden>
       <div id="tb-chu" class="tb-chu" aria-live="polite"></div>

@@ -11,6 +11,8 @@ import { gocNhinChuan } from './thu-vien.js';
 import { veHinh, veTraiPhang } from './ve-svg.js';
 import { taoGLB } from './glb.js';
 import { do_, tenDo, hinhVeDo } from './do-dac.js';
+import { taoDoThi, bangBienThien, kichBanDoThi } from './do-thi.js';
+import { veDoThi, veBBT } from './do-thi-svg.js';
 
 // Thư viện xem 3D/AR của Google, bản cố định; chỉ tải khi học sinh mở phần 3D
 const MODEL_VIEWER = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js';
@@ -21,6 +23,8 @@ let doc, hinh, gocNhin;
 let doVe = []; // hình vẽ của các số đo thầy cô gửi kèm (đoạn khoảng cách, dấu góc)
 let trinhBay = null; // { kb, i }
 let trai = null;     // { muc, tren, chay }
+let doThi = null;    // đồ thị hàm số (thay cho hình không gian)
+let coBBT = true;    // học sinh tự bật, tắt bảng biến thiên
 
 function baoLoi(chu) {
   $('#ten').textContent = 'Không mở được hình';
@@ -35,6 +39,14 @@ function baoLoi(chu) {
 
 function ve() {
   const ht = doc.hien_thi;
+  if (doThi) {
+    const lop = trinhBay ? trinhBay.kb.khung[trinhBay.i].lop : null;
+    const hien = coBBT && (!lop || lop.has('bbt'));
+    $('#bbt').toggleAttribute('hidden', !hien);
+    veDoThi(svg, doThi, { kieu: ht.kieu, lop });
+    if (hien) veBBT($('#bbt'), bangBienThien(doThi), { kieu: ht.kieu });
+    return;
+  }
   if (trai) {
     const pc = (trai.tren ? taoPhepChieuTren : taoPhepChieu)(gocNhin);
     const bl = lapBanLe(hinh);
@@ -62,7 +74,7 @@ function denKhung(i) {
 function datTrinhBay(bat) {
   if (bat) {
     datTrai(false);
-    trinhBay = { kb: taoKichBan(taoHinh(doc.goc.loai, doc.goc.tham_so), doc.buoc_dung), i: 0 };
+    trinhBay = { kb: doThi ? { khung: kichBanDoThi(doThi) } : taoKichBan(taoHinh(doc.goc.loai, doc.goc.tham_so), doc.buoc_dung), i: 0 };
     denKhung(0);
   } else {
     trinhBay = null;
@@ -70,7 +82,7 @@ function datTrinhBay(bat) {
   }
   $('#thanh-tb').hidden = !bat;
   $('#trinh-bay').classList.toggle('bat', bat);
-  $('#trinh-bay').textContent = bat ? '■ Thôi dựng từng bước' : '▶ Dựng từng bước';
+  $('#trinh-bay').textContent = bat ? (doThi ? '■ Thôi vẽ từng bước' : '■ Thôi dựng từng bước') : (doThi ? '▶ Vẽ từng bước' : '▶ Dựng từng bước');
 }
 
 function datTrai(bat) {
@@ -107,7 +119,7 @@ function chayTrai() {
 
 // Kéo để xoay (ngang: quanh trục đứng, dọc: đổi góc nhìn)
 let keo = null;
-svg.addEventListener('pointerdown', e => { keo = { x: e.clientX, y: e.clientY, g: { ...gocNhin } }; svg.setPointerCapture(e.pointerId); });
+svg.addEventListener('pointerdown', e => { if (doThi) return; keo ={ x: e.clientX, y: e.clientY, g: { ...gocNhin } }; svg.setPointerCapture(e.pointerId); });
 svg.addEventListener('pointermove', e => {
   if (!keo) return;
   const dx = e.clientX - keo.x, dy = e.clientY - keo.y;
@@ -126,6 +138,7 @@ $('#chay-trai').onclick = chayTrai;
 $('#muc-trai').oninput = e => { if (trai.chay) { cancelAnimationFrame(trai.chay); trai.chay = null; } trai.muc = +e.target.value; capNhatTrai(); ve(); };
 $('#nhin-tren').onclick = () => { trai.tren = !trai.tren; capNhatTrai(); ve(); };
 $('#goc-chuan').onclick = () => { gocNhin = { ...doc.hien_thi.goc_nhin }; ve(); };
+$('#nut-bbt').onclick = () => { coBBT = !coBBT; $('#nut-bbt').classList.toggle('bat', coBBT); ve(); };
 document.addEventListener('keydown', e => {
   if (!trinhBay) return;
   if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); denKhung(trinhBay.i + 1); }
@@ -208,9 +221,23 @@ $('#hien-nhan').onclick = e => {
   if (!location.hash) return baoLoi('Link không có hình.');
   try {
     doc = await giaiMa(location.hash);
-    hinh = apDung(taoHinh(doc.goc.loai, doc.goc.tham_so), doc.buoc_dung);
+    if (doc.goc.loai === 'do-thi') doThi = taoDoThi(doc.goc.tham_so);
+    else hinh = apDung(taoHinh(doc.goc.loai, doc.goc.tham_so), doc.buoc_dung);
   } catch (e) {
     return baoLoi(e.message + '.');
+  }
+  if (doThi) {
+    // Đồ thị: không xoay, không trải phẳng, không có 3D
+    document.body.classList.add('do-thi');
+    $('#chon-che-do').hidden = $('#trai-phang').hidden = $('#goc-chuan').hidden = true;
+    $('#nut-bbt').hidden = false;
+    coBBT = doc.hien_thi.bbt !== false;
+    $('#nut-bbt').classList.toggle('bat', coBBT);
+    $('#trinh-bay').textContent = '▶ Vẽ từng bước';
+    $('#ghi-ve').textContent = doThi.congThuc;
+    $('#ten').textContent = doc.meta.ten;
+    document.title = doc.meta.ten + ' · Xem đồ thị';
+    return ve();
   }
   gocNhin = { ...gocNhinChuan(doc.goc.loai), ...doc.hien_thi.goc_nhin };
   $('#ten').textContent = doc.meta.ten;

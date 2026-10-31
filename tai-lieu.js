@@ -9,6 +9,7 @@
 // }
 
 import { gocNhinChuan } from './thu-vien.js';
+import { HAM } from './do-thi.js';
 import { taoKhoi } from './khoi.js';
 
 export const PHIEN_BAN = 1;
@@ -39,10 +40,12 @@ export function chuanHoa(x) {
   if (typeof x.version !== 'number') throw new Error('Tệp thiếu số phiên bản');
   if (x.version > PHIEN_BAN) throw new Error('Tệp được tạo bởi bản app mới hơn, cần cập nhật app');
   const g = x.goc;
-  if (!g || !['chop', 'lang-tru', 'non', 'tru', 'cau'].includes(g.loai) || !g.tham_so || typeof g.tham_so !== 'object') {
+  if (!g || !['chop', 'lang-tru', 'non', 'tru', 'cau', 'do-thi'].includes(g.loai) || !g.tham_so || typeof g.tham_so !== 'object') {
     throw new Error('Tệp thiếu phần khối gốc');
   }
-  taoKhoi(g.loai, g.tham_so); // số đo sai thì báo lỗi ngay khi mở
+  // Số đo sai thì báo lỗi ngay khi mở. Đồ thị: hệ số gõ sai vẫn mở được để sửa, chỉ cần loại hàm đúng.
+  if (g.loai === 'do-thi') { if (!HAM[g.tham_so.ham]) throw new Error('Tệp đồ thị có loại hàm lạ'); }
+  else taoKhoi(g.loai, g.tham_so);
   const ht = x.hien_thi || {};
   return {
     version: PHIEN_BAN,
@@ -56,7 +59,8 @@ export function chuanHoa(x) {
       net_chinh_tay: { ...ht.net_chinh_tay },
       an_phu: !!ht.an_phu,
       mat_day: !!ht.mat_day,
-      an_do: !!ht.an_do
+      an_do: !!ht.an_do,
+      bbt: ht.bbt === undefined ? g.loai === 'do-thi' : !!ht.bbt // đồ thị: hiện bảng biến thiên
     }
   };
 }
