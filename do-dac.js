@@ -14,6 +14,8 @@
 //   { id, loai: 'kc-hai-duong', d1, d2 }
 //   { id, loai: 'dien-tich', mat }                     diện tích đa giác (mat = các đỉnh theo thứ tự) hoặc mat = ['td1'] (thiết diện)
 //   { id, loai: 'the-tich', mat }                      mat rỗng: cả khối; 4 điểm: tứ diện
+//   { id, loai: 'dien-tich-mat', phan: 'xq' | 'tp' }   diện tích xung quanh / toàn phần của cả khối
+// Khối tròn xoay: thể tích, diện tích tính đúng theo công thức (viết theo π), không theo lưới xấp xỉ.
 
 import { sub, dot, cross, len, newell, centroid } from './vec.js';
 
@@ -50,14 +52,16 @@ const ucln = (a, b) => (b ? ucln(b, a % b) : a);
 const soVN = (x, so = 3) => (+x.toFixed(so)).toLocaleString('vi-VN', { maximumFractionDigits: so });
 
 // Viết x theo đơn vị a mũ k (k = 1 độ dài, 2 diện tích, 3 thể tích): "a√14/2", "3a²/4", "a³√3/12"
-export function vietTheoA(x, k = 1) {
+// coPi: x là bội của π (khối tròn xoay): "πa³/3", "4πa³/3", "πa²√2"
+export function vietTheoA(x, k = 1, coPi = false) {
   const donVi = k === 1 ? 'a' : k === 2 ? 'a²' : 'a³';
   if (Math.abs(x) < 1e-12) return '0';
-  const r = nhanDang(x);
+  const r = nhanDang(coPi ? x / Math.PI : x);
   const gan = `${soVN(x)}${donVi}`;
   if (!r) return '≈ ' + gan;
   const can = r.n === 1 ? '' : `√${r.n}`;
-  const tu = `${r.p === 1 ? '' : r.p}${donVi}${can}`;
+  const tu = `${r.p === 1 ? '' : r.p}${coPi ? 'π' : ''}${donVi}${can}`;
+  if (coPi) return `${r.q === 1 ? tu : `${tu}/${r.q}`} ≈ ${gan}`;
   const dep = r.q === 1 ? tu : `${tu}/${r.q}`;
   return r.q === 1 && r.n === 1 ? dep : `${dep} ≈ ${gan}`;
 }
@@ -110,6 +114,13 @@ export function theTichKhoi(diem, mat) {
     v += dienTichDaGiac(ps) * Math.abs(dot(sub(ps[0], O), newell(ps))) / 3;
   }
   return v;
+}
+
+// Khối tròn xoay: bán kính r, chiều cao h, đường sinh l (tính đúng theo công thức, không theo lưới xấp xỉ)
+function khoiTron(hinh) {
+  if (!['non', 'tru', 'cau'].includes(hinh.loai)) return null;
+  const r = hinh.thamSo.r, h = hinh.thamSo.cao || 0;
+  return { r, h, l: Math.hypot(r, h) };
 }
 
 // ---------- Đo ----------
@@ -173,8 +184,28 @@ export function do_(hinh, m) {
       const x = dienTichDaGiac(ps);
       return { giaTri: x, chu: vietTheoA(x, 2), loai: 'dien-tich' };
     }
+    case 'dien-tich-mat': {
+      // Diện tích xung quanh (xq) hoặc toàn phần (tp) của cả khối
+      const tron = khoiTron(hinh);
+      if (tron) {
+        const { r, h, l } = tron;
+        const x = hinh.loai === 'cau' ? 4 * Math.PI * r * r
+          : hinh.loai === 'non' ? Math.PI * r * (l + (m.phan === 'tp' ? r : 0))
+          : 2 * Math.PI * r * (h + (m.phan === 'tp' ? r : 0));
+        return { giaTri: x, chu: vietTheoA(x, 2, true), loai: 'dien-tich' };
+      }
+      const soDay = hinh.loai === 'lang-tru' ? 2 : 1;
+      const x = hinh.mat.slice(m.phan === 'tp' ? 0 : soDay).reduce((t, f) => t + dienTichDaGiac(f.map(P)), 0);
+      return { giaTri: x, chu: vietTheoA(x, 2), loai: 'dien-tich' };
+    }
     case 'the-tich': {
       let x;
+      const tron = !m.mat?.length && khoiTron(hinh);
+      if (tron) {
+        const { r, h } = tron;
+        x = hinh.loai === 'cau' ? 4 / 3 * Math.PI * r ** 3 : hinh.loai === 'non' ? Math.PI * r * r * h / 3 : Math.PI * r * r * h;
+        return { giaTri: x, chu: vietTheoA(x, 3, true), loai: 'the-tich' };
+      }
       if (!m.mat?.length) x = theTichKhoi(hinh.diem, hinh.mat);
       else if (m.mat.length === 4) {
         const [A, B, C, D] = m.mat.map(P);
@@ -347,9 +378,14 @@ export function tenDo(m, hinh) {
       const dg = m.mat?.length === 1 ? hinh?.daGiac?.find(d => d.id === m.mat[0]) : null;
       return `Diện tích ${dg ? 'thiết diện ' + nn(dg.diem) : nn(m.mat)}`;
     }
+    case 'dien-tich-mat': {
+      const ten = { non: ' hình nón', tru: ' hình trụ', cau: ' mặt cầu' }[hinh?.loai] || '';
+      return hinh?.loai === 'cau' ? 'Diện tích mặt cầu' : `Diện tích ${m.phan === 'tp' ? 'toàn phần' : 'xung quanh'}${ten}`;
+    }
     case 'the-tich': {
       if (m.mat?.length) return `V(${nn(m.mat)})`;
       if (!hinh) return 'Thể tích khối';
+      if (['non', 'tru', 'cau'].includes(hinh.loai)) return { non: 'Thể tích khối nón', tru: 'Thể tích khối trụ', cau: 'Thể tích khối cầu' }[hinh.loai];
       const day = nn(hinh.mat[0]);
       return hinh.loai === 'chop' ? `V(${n(hinh.thamSo?.ten_dinh || 'S')}.${day})` : `V(${day}.${nn(hinh.mat[1])})`;
     }

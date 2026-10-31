@@ -7,7 +7,7 @@ import { apDung } from './dung.js';
 import { taoPhepChieu, taoPhepChieuTren } from './chieu.js';
 import { taoKichBan } from './trinh-bay.js';
 import { lapBanLe, traiPhang, traiPhangDayDu } from './trai-phang.js';
-import { GOC_NHIN_CHUAN } from './thu-vien.js';
+import { gocNhinChuan } from './thu-vien.js';
 import { veHinh, veTraiPhang } from './ve-svg.js';
 import { taoGLB } from './glb.js';
 import { do_, tenDo, hinhVeDo } from './do-dac.js';
@@ -111,7 +111,7 @@ svg.addEventListener('pointerdown', e => { keo = { x: e.clientX, y: e.clientY, g
 svg.addEventListener('pointermove', e => {
   if (!keo) return;
   const dx = e.clientX - keo.x, dy = e.clientY - keo.y;
-  gocNhin = { ...keo.g, xoay: ((keo.g.xoay - dx * 0.5 + 180) % 360 + 360) % 360 - 180, goc: Math.min(75, Math.max(15, keo.g.goc - dy * 0.3)) };
+  gocNhin = { ...keo.g, xoay: ((keo.g.xoay - dx * 0.5 + 180) % 360 + 360) % 360 - 180, goc: Math.min(90, Math.max(15, keo.g.goc - dy * 0.3)) };
   ve();
 });
 svg.addEventListener('pointerup', () => { keo = null; });
@@ -212,7 +212,7 @@ $('#hien-nhan').onclick = e => {
   } catch (e) {
     return baoLoi(e.message + '.');
   }
-  gocNhin = { ...GOC_NHIN_CHUAN, ...doc.hien_thi.goc_nhin };
+  gocNhin = { ...gocNhinChuan(doc.goc.loai), ...doc.hien_thi.goc_nhin };
   $('#ten').textContent = doc.meta.ten;
   document.title = doc.meta.ten + ' · Xem hình không gian';
   // Số đo (chỉ có khi thầy cô chọn gửi kèm)

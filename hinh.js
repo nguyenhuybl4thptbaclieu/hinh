@@ -22,11 +22,21 @@ export function taoHinh(loai, thamSo) {
     const id = khoaDoan(s.a, s.b);
     if (!doan.has(id)) doan.set(id, { id, a: s.a, b: s.b, loai: 'phu', matKe: [] });
   }
+  // Khối tròn xoay (core/khoi.js): cạnh chia mặt cong chỉ vẽ khi là đường biên (tron) hoặc không bao giờ vẽ (an)
+  for (const [a, b] of khoi.tron || []) { const s = doan.get(khoaDoan(a, b)); if (s) s.tron = true; }
+  for (const [a, b] of khoi.an || []) { const s = doan.get(khoaDoan(a, b)); if (s) s.an = true; }
   const pts = Object.values(khoi.diem);
   const tam = centroid(pts);
   const banKinh = Math.max(...pts.map(p => len(sub(p, tam))));
-  return { loai, thamSo, diem: khoi.diem, mat: khoi.mat, matChe, doan: [...doan.values()], tam, banKinh };
+  return {
+    loai, thamSo, diem: khoi.diem, mat: khoi.mat, matChe, doan: [...doan.values()], tam, banKinh,
+    ...(khoi.diemAn ? { diemAn: new Set(khoi.diemAn) } : {}),
+    ...(khoi.cau ? { cau: { O: khoi.diem[khoi.cau.tam], r: khoi.cau.r } } : {})
+  };
 }
+
+// Cạnh chia mặt cong (đường sinh của nón, trụ) là đường biên của hình khi một mặt kề quay về người nhìn, mặt kia quay đi
+export const laDuongBien = (s, pc) => s.matKe.length === 2 && Math.sign(dot(s.matKe[0].n, pc.huong)) !== Math.sign(dot(s.matKe[1].n, pc.huong));
 
 // Mặt phẳng chứa đáy, vẽ như SGK: hình bình hành rộng hơn đáy một khoảng `le` (theo cỡ đáy) mỗi phía.
 // Cạnh của nó song song trục x và trục y của thế giới nên trông như mặt bàn đặt dưới khối.
@@ -74,5 +84,26 @@ export function dauMutDoan(hinh, s) {
 // Tính các khúc thấy/khuất cho mọi đoạn theo phép chiếu pc
 export function tinhNet(hinh, pc) {
   const eps = 1e-7 * hinh.banKinh;
-  return new Map(hinh.doan.map(s => { const [P, Q] = dauMutDoan(hinh, s); return [s.id, chiaDoan(P, Q, hinh.matChe, pc, eps)]; }));
+  // Cạnh chia mặt cong không xét: không vẽ, hoặc chỉ vẽ khi là đường biên (đường biên của khối lồi luôn thấy)
+  // Khối tròn xoay: ở đỉnh nón rất nhiều mặt nhỏ gặp nhau, dung sai để lại mẩu thấy/khuất cực ngắn; gộp mẩu dưới 4% vào khúc bên cạnh
+  const tron = !!hinh.diemAn?.size && ['non', 'tru', 'cau'].includes(hinh.loai);
+  return new Map(hinh.doan.filter(s => !s.tron && !s.an).map(s => {
+    const [P, Q] = dauMutDoan(hinh, s);
+    const k = chiaDoan(P, Q, hinh.matChe, pc, eps);
+    return [s.id, tron ? gopKhucNgan(k, 0.04) : k];
+  }));
+}
+
+function gopKhucNgan(khuc, nguong) {
+  if (khuc.length < 2) return khuc;
+  const dai = khuc.filter(k => k.t1 - k.t0 >= nguong);
+  if (!dai.length) return khuc;
+  const r = [];
+  for (const k of dai) {
+    const cuoi = r[r.length - 1];
+    if (cuoi && cuoi.khuat === k.khuat) cuoi.t1 = k.t1;
+    else r.push({ ...k, t0: cuoi ? cuoi.t1 : 0 });
+  }
+  r[r.length - 1].t1 = 1;
+  return r;
 }

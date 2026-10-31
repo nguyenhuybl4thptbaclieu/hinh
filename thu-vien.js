@@ -18,6 +18,18 @@ export const HINH_CHUAN = [
   { id: 'hop-xien', ten: "Hình hộp ABCD.A'B'C'D'", loai: 'lang-tru', thuMuc: L11 + '/Song song', ts: { day: 'binh-hanh', a: 1, b: 0.8, cao: 0.8, xien: [0.3, 0.1] } }
 ];
 
+// Khối tròn xoay (bán kính r, chiều cao cao, theo đơn vị a).
+// Góc nhìn chuẩn riêng như SGK: trục sau vẽ thẳng đứng và rút ngắn nhiều, nên đường tròn nằm ngang thành elip có trục nằm ngang
+// và mặt cầu gần như tròn.
+export const GOC_NHIN_TRON = { xoay: 0, goc: 90, heSo: 0.35 };
+export const gocNhinChuan = loai => ({ ...(['non', 'tru', 'cau'].includes(loai) ? GOC_NHIN_TRON : GOC_NHIN_CHUAN) });
+
+export const HINH_TRON = [
+  { id: 'non', ten: 'Hình nón đỉnh S, đáy tâm O', loai: 'non', thuMuc: L12 + '/Thể tích', ts: { r: 1, cao: 1.6 } },
+  { id: 'tru', ten: "Hình trụ trục OO'", loai: 'tru', thuMuc: L12 + '/Thể tích', ts: { r: 1, cao: 1.4 } },
+  { id: 'cau', ten: 'Mặt cầu tâm O', loai: 'cau', thuMuc: L12 + '/Thể tích', ts: { r: 1 } }
+];
+
 export const GOC_NHIN_CHUAN = { xoay: 0, goc: 45, heSo: 0.5 };
 
 // Bài thiết diện mẫu: khối gốc lấy từ HINH_CHUAN (theo id) cộng các bước dựng

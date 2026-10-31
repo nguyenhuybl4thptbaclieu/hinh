@@ -35,7 +35,11 @@ export function taoKichBan(hinhGoc, buoc = []) {
     const b = buoc[i];
     const sau = apDung(hinhGoc, buoc.slice(0, i + 1));
     if (!sau.loi[b.id]) {
-      if (b.loai === 'thiet-dien') giaiThichThietDien(hinhGoc, b, sau, ghi, them);
+      // Khối tròn xoay: thiết diện (elip, tam giác qua trục...) vẽ một lần, không tách từng giao tuyến
+      if (b.loai === 'thiet-dien' && hinhGoc.diemAn?.size) {
+        const dg = sau.daGiac.find(d => d.id === b.id);
+        if (dg) ghi(b.ghi_chu || `${moTa(b, sau).replace(/:.*$/, '')}.`, { doan: dg.diem.map((t, k) => khoaDoan(t, dg.diem[(k + 1) % dg.diem.length])), daGiac: [b.id] });
+      } else if (b.loai === 'thiet-dien') giaiThichThietDien(hinhGoc, b, sau, ghi, them);
       else {
         const diemMoi = Object.keys(sau.diem).filter(t => !truoc.diem[t]);
         const coTruoc = new Set(truoc.doan.map(d => d.id));
@@ -75,7 +79,33 @@ function moTaChan(chan, tenChan, dayTamGiac) {
   return `điểm ${tenChan}`;
 }
 
+// Khối tròn xoay: vẽ như trên bảng (đường tròn thành elip, đường sinh biên, trục)
+function veKhoiTron(h, ghi) {
+  const day = h.mat[0], canhDay = day.map((t, i) => khoaDoan(t, day[(i + 1) % day.length]));
+  const phu = h.doan.filter(d => d.loai === 'phu').map(d => d.id);
+  const sinh = h.doan.filter(d => d.tron).map(d => d.id);
+  const [O, A] = ['O', 'A'];
+  if (h.loai === 'cau') {
+    ghi(`Vẽ đường tròn lớn bao quanh tâm ${O}: đó là đường viền của mặt cầu.`, { doan: ['vien-cau'], diem: [O] });
+    ghi(`Vẽ đường xích đạo (đường tròn lớn nằm ngang): hình biểu diễn là một elip, nửa phía sau bị mặt cầu che nên vẽ nét đứt. Bán kính ${O}${A}.`,
+      { doan: h.doan.filter(d => !d.an && d.loai === 'canh').map(d => d.id).concat(phu), diem: [A] });
+    return;
+  }
+  ghi(`Vẽ đường tròn đáy tâm ${O}, bán kính ${O}${A}: trong hình biểu diễn, đường tròn nằm ngang trở thành một elip; nửa phía sau bị khối che vẽ nét đứt.`,
+    { doan: [...canhDay, khoaDoan(O, A)], diem: [O, A] });
+  if (h.loai === 'non') {
+    ghi(`Vẽ đường cao S${O} vuông góc với đáy (thẳng đứng), đỉnh S nằm trên trục.`, { doan: [khoaDoan('S', O)], diem: ['S'] });
+    ghi('Từ S kẻ hai đường sinh tiếp xúc với elip đáy ở hai bên: đó là đường biên của hình nón.', { doan: sinh });
+    return;
+  }
+  const tren = h.mat[1], canhTren = tren.map((t, i) => khoaDoan(t, tren[(i + 1) % tren.length]));
+  ghi(`Vẽ trục ${O}${O}′ vuông góc với đáy (thẳng đứng), rồi đường tròn đáy trên tâm ${O}′ bằng đường tròn đáy dưới: elip đáy trên thấy trọn.`,
+    { doan: [khoaDoan(O, O + "'"), ...canhTren], diem: [O + "'", A + "'"] });
+  ghi('Kẻ hai đường sinh thẳng đứng tiếp xúc với hai elip ở hai bên: đó là đường biên của hình trụ.', { doan: sinh });
+}
+
 function veKhoi(h, ghi) {
+  if (['non', 'tru', 'cau'].includes(h.loai)) return veKhoiTron(h, ghi);
   const ts = h.thamSo || {};
   const canhCua = ten => ten.map((t, i) => khoaDoan(t, ten[(i + 1) % ten.length]));
   const tenDay = h.mat[0];

@@ -91,6 +91,7 @@ export function taoGLB(hinh, { kieu = 'bai-giang', cheDo = 'trong', anPhu = fals
   // Nét
   for (const s of hinh.doan) {
     if (anPhu && s.loai === 'phu') continue;
+    if (s.tron || s.an) continue; // lưới chia mặt cong: mặt 3D đã thể hiện, không vẽ cạnh
     const [P, Q] = dauMutDoan(hinh, s);
     const loai = s.loai === 'thiet-dien' || s.thietDien ? 'td' : s.loai === 'phu' || s.loai === 'keo-dai' ? 'phu' : s.loai === 'noi' ? 'noi' : 'canh';
     ong(lay('net-' + loai, M[loai]), doi(P), doi(Q), loai === 'canh' || loai === 'td' ? rOng : rOng * 0.75);

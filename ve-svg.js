@@ -1,7 +1,7 @@
 // Bộ vẽ SVG: nhận hình (lõi) + phép chiếu + kiểu, trả về hình vẽ.
 // Nét thấy liền, nét khuất đứt, kiểu hình biểu diễn SGK.
 
-import { tinhNet, matPhangDay, dauMutDoan } from './hinh.js';
+import { tinhNet, matPhangDay, dauMutDoan, laDuongBien } from './hinh.js';
 import { chiaDoan } from './net-khuat.js';
 import { lerp, len, sub, dot, centroid } from './vec.js';
 
@@ -85,6 +85,7 @@ const kieuDoan = (K, s) => s.loai === 'thiet-dien' || s.thietDien ? { mau: K.td,
 // doVe: hình vẽ của các phép đo đang hiện (core/do-dac.js hinhVeDo): đoạn khoảng cách, cung góc, dấu góc vuông
 export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = {}, chon = null, coChu = 20, khung = null, matDay = false, diemChon = null, doVe = [] } = {}) {
   const K = KIEU[kieu];
+  if (hinh.cau) matDay = false; // mặt cầu không có đáy
   // Canh hình chiếu vừa khung (đổi liên tục khi xoay nên không bị giật); có mặt phẳng đáy thì canh cả mặt phẳng
   // Đường thẳng kéo dài ra ngoài khối: canh khung theo cả hai đầu kéo dài
   const dauDuong = hinh.doan.filter(s => s.duong).flatMap(s => dauMutDoan(hinh, s));
@@ -95,9 +96,11 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
   const net = tinhNet(hinh, pc);
   const lop = { matP: nhom(svg), to: nhom(svg), chon: nhom(svg), khuat: nhom(svg), thay: nhom(svg), bam: nhom(svg), diem: nhom(svg), chu: nhom(svg), bamDiem: nhom(svg) };
   if (matDay) veMatPhangDay(lop.matP, hinh, pc, man, K, coChu);
-  const hienDoan = s => !(anPhu && s.loai === 'phu') && (!khung || khung.doan.has(s.id));
+  // Khối tròn xoay: lưới chia mặt không vẽ; đường sinh chỉ vẽ khi là đường biên của hình
+  const hienDoan = s => !s.an && !(s.tron && !laDuongBien(s, pc)) && !(anPhu && s.loai === 'phu') && (!khung || khung.doan.has(s.id));
   const hienDiem = t => !khung || khung.diem.has(t);
   const laMoi = x => !!khung?.moi.has(x);
+  if (hinh.cau && (!khung || khung.doan.has('vien-cau'))) veVienCau(lop.thay, hinh.cau, pc, man, K, laMoi('vien-cau'));
 
   // Tô thiết diện (nằm dưới các nét)
   for (const dg of hinh.daGiac || []) {
@@ -114,6 +117,7 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
     const khuc = cheDo === 'lien' ? [{ t0: 0, t1: 1, khuat: false }]
       : cheDo === 'khuat' ? [{ t0: 0, t1: 1, khuat: true }]
       : s.duong && !keoDai ? chiaDoan(P, Q, hinh.matChe, pc, 1e-7 * hinh.banKinh)
+      : s.tron ? [{ t0: 0, t1: 1, khuat: false }] // đường biên của khối lồi luôn thấy
       : net.get(s.id);
     let { mau, rong } = kieuDoan(K, s);
     if (laMoi(s.id)) { mau = K.moi; rong += 0.8; }
@@ -190,6 +194,25 @@ export function veHinh(svg, hinh, pc, { kieu = 'bai-giang', anPhu = false, ep = 
     lop.chu.appendChild(t);
   }
   return { net };
+}
+
+// Đường viền mặt cầu: đường tròn lớn vuông góc với hướng nhìn (hình chiếu của nó là đường bao của hình), luôn thấy
+function veVienCau(lop, cau, pc, man, K, moi) {
+  const d = pc.huong, dd = Math.hypot(...d);
+  const w = d.map(x => x / dd);
+  let e1 = Math.abs(w[2]) < 0.9 ? [w[1], -w[0], 0] : [0, w[2], -w[1]];
+  const l1 = Math.hypot(...e1);
+  e1 = e1.map(x => x / l1);
+  const e2 = [w[1] * e1[2] - w[2] * e1[1], w[2] * e1[0] - w[0] * e1[2], w[0] * e1[1] - w[1] * e1[0]];
+  const diem = [];
+  for (let i = 0; i <= 180; i++) {
+    const t = 2 * Math.PI * i / 180;
+    diem.push(man(cau.O.map((x, k) => x + cau.r * (Math.cos(t) * e1[k] + Math.sin(t) * e2[k]))));
+  }
+  lop.appendChild(phanTu('polyline', {
+    points: diem.map(q => q.join(',')).join(' '), fill: 'none',
+    stroke: moi ? K.moi : K.canh, 'stroke-width': moi ? K.rong + 0.8 : K.rong, 'stroke-linejoin': 'round'
+  }));
 }
 
 // Hình vẽ của phép đo: đoạn khoảng cách (đậm hơn, phần bị khối che vẽ đứt), nét phụ (mảnh, đứt),

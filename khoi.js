@@ -147,8 +147,100 @@ export function taoLangTru({ day, a = 1, b = a, cao = 1, xien = [0, 0], ten_day,
   return { diem, mat, phu };
 }
 
+// ---------- Khối tròn xoay ----------
+// Mặt cong được xấp xỉ bằng nhiều mặt phẳng nhỏ (để xét nét khuất cho mọi thứ dựng thêm như với khối đa diện),
+// nhưng khi vẽ chỉ hiện những gì SGK vẽ:
+//   tron: các cạnh chia mặt cong (đường sinh), chỉ vẽ khi là đường biên của hình (một mặt kề quay về người nhìn, mặt kia quay đi);
+//   an:   các cạnh không bao giờ vẽ (lưới chia mặt cầu: đường viền mặt cầu vẽ riêng bằng công thức);
+//   diemAn: tên các đỉnh của lưới (bắt đầu bằng ~), không ghi tên.
+// Đường tròn đáy là đa giác đều N cạnh; điểm A (đầu bán kính) là một đỉnh của nó, nằm bên phải tâm.
+export const LOAI_TRON = ['non', 'tru', 'cau'];
+// Không đường sinh nào được nằm đúng phía trước ở các góc xoay tròn độ: nếu có, hình chiếu của nó trùng với trục SO
+// và trục bị coi nhầm là thấy (trường hợp suy biến của phép xét nét khuất)
+const N_TRON = 97;
+
+// Cả vòng lệch đi một phần vô tỉ của bước (√2 − 1): không đỉnh nào nằm ở góc tròn độ, kể cả A
+const LECH_TRON = Math.SQRT2 - 1;
+
+function duongTron(r, z, ten, tenDau) {
+  return Array.from({ length: N_TRON }, (_, i) => {
+    const t = 2 * Math.PI * (i + LECH_TRON) / N_TRON;
+    return [i === 0 ? tenDau : `~${ten}${i}`, [r * Math.cos(t), r * Math.sin(t), z]];
+  });
+}
+
+export function taoNon({ r = 1, cao = 1.6, ten_dinh = 'S', ten_tam = 'O', ten_diem = 'A' }) {
+  if (!(r > 0) || !(cao > 0)) throw new Error('Bán kính và chiều cao phải lớn hơn 0');
+  const day = duongTron(r, 0, 'd', ten_diem), ten = day.map(x => x[0]);
+  const diem = Object.fromEntries(day);
+  diem[ten_dinh] = [0, 0, cao];
+  diem[ten_tam] = [0, 0, 0];
+  const mat = [ten.slice()];
+  for (let i = 0; i < N_TRON; i++) mat.push([ten[i], ten[(i + 1) % N_TRON], ten_dinh]);
+  return {
+    diem, mat, phu: [{ a: ten_dinh, b: ten_tam }, { a: ten_tam, b: ten_diem }],
+    tron: ten.map(t => [t, ten_dinh]), an: [], diemAn: ten.slice(1)
+  };
+}
+
+export function taoTru({ r = 1, cao = 1.4, ten_tam = 'O', ten_diem = 'A' }) {
+  if (!(r > 0) || !(cao > 0)) throw new Error('Bán kính và chiều cao phải lớn hơn 0');
+  const day = duongTron(r, 0, 'd', ten_diem), tren = duongTron(r, cao, 't', ten_diem + "'");
+  const ten = day.map(x => x[0]), ten2 = tren.map(x => x[0]);
+  const diem = Object.fromEntries([...day, ...tren]);
+  diem[ten_tam] = [0, 0, 0];
+  diem[ten_tam + "'"] = [0, 0, cao];
+  const mat = [ten.slice(), ten2.slice()];
+  for (let i = 0; i < N_TRON; i++) {
+    const j = (i + 1) % N_TRON;
+    mat.push([ten[i], ten[j], ten2[j], ten2[i]]);
+  }
+  return {
+    diem, mat, phu: [{ a: ten_tam, b: ten_tam + "'" }, { a: ten_tam, b: ten_diem }],
+    tron: ten.map((t, i) => [t, ten2[i]]), an: [], diemAn: [...ten.slice(1), ...ten2.slice(1)]
+  };
+}
+
+// Mặt cầu: lưới kinh tuyến × vĩ tuyến; vĩ tuyến giữa là đường xích đạo (vẽ, nửa sau nét đứt), A nằm trên xích đạo
+export function taoCau({ r = 1, ten_tam = 'O', ten_diem = 'A' }) {
+  if (!(r > 0)) throw new Error('Bán kính phải lớn hơn 0');
+  const KINH = 64, VI = 24; // VI chẵn để có vòng xích đạo
+  const diem = { [ten_tam]: [0, 0, 0] };
+  const ten = (i, j) => (j === VI / 2 && i === 0 ? ten_diem : `~c${i}_${j}`);
+  diem['~bac'] = [0, 0, r];
+  diem['~nam'] = [0, 0, -r];
+  for (let j = 1; j < VI; j++) {
+    const v = Math.PI * j / VI, z = r * Math.cos(v), rr = r * Math.sin(v);
+    for (let i = 0; i < KINH; i++) {
+      const u = 2 * Math.PI * i / KINH;
+      diem[ten(i, j)] = [rr * Math.cos(u), rr * Math.sin(u), z];
+    }
+  }
+  const mat = [];
+  for (let i = 0; i < KINH; i++) {
+    const k = (i + 1) % KINH;
+    mat.push(['~bac', ten(i, 1), ten(k, 1)].reverse());
+    for (let j = 1; j < VI - 1; j++) mat.push([ten(i, j), ten(i, j + 1), ten(k, j + 1), ten(k, j)]);
+    mat.push([ten(i, VI - 1), '~nam', ten(k, VI - 1)].reverse());
+  }
+  // Mọi cạnh của lưới đều ẩn, trừ các cạnh của vòng xích đạo
+  const xichDao = new Set(Array.from({ length: KINH }, (_, i) => [ten(i, VI / 2), ten((i + 1) % KINH, VI / 2)].sort().join('|')));
+  const an = [];
+  for (const f of mat) for (let q = 0; q < f.length; q++) {
+    const a = f[q], b = f[(q + 1) % f.length];
+    if (!xichDao.has([a, b].sort().join('|'))) an.push([a, b]);
+  }
+  return {
+    diem, mat, phu: [{ a: ten_tam, b: ten_diem }], tron: [], an,
+    diemAn: Object.keys(diem).filter(t => t.startsWith('~')), cau: { tam: ten_tam, r }
+  };
+}
+
 export function taoKhoi(loai, thamSo) {
   if (loai === 'chop') return taoChop(thamSo);
   if (loai === 'lang-tru') return taoLangTru(thamSo);
+  if (loai === 'non') return taoNon(thamSo);
+  if (loai === 'tru') return taoTru(thamSo);
+  if (loai === 'cau') return taoCau(thamSo);
   throw new Error('Không biết loại khối: ' + loai);
 }

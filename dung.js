@@ -132,7 +132,9 @@ export function apDung(hinh, buoc = []) {
   const themDoan = (a, b, loai) => {
     const id = khoaDoan(a, b);
     const cu = doan.get(id);
-    if (cu) { if (loai === 'thiet-dien') doan.set(id, { ...cu, thietDien: true }); return; }
+    // Cạnh chia mặt cong (đường sinh, lưới mặt cầu) vốn không vẽ: dựng thêm trùng nó thì cho hiện
+    const hien = cu?.tron || cu?.an ? { tron: false, an: false, loai: cu.loai === 'canh' ? 'noi' : cu.loai } : {};
+    if (cu) { doan.set(id, { ...cu, ...hien, ...(loai === 'thiet-dien' ? { thietDien: true } : {}) }); return; }
     doan.set(id, { id, a, b, loai, matKe: [] });
   };
   const trungDiem = p => Object.keys(diem).find(t => !diemAn.has(t) && len(sub(diem[t], p)) < eps);
@@ -221,6 +223,13 @@ export function apDung(hinh, buoc = []) {
           if (cu) return cu;
           const k = khoaDoan(x.canh.a, x.canh.b);
           let t = b.ten_diem?.[k];
+          // Khối tròn xoay: thiết diện cắt qua rất nhiều cạnh của lưới (elip, parabol...): giao điểm không đặt tên
+          if (hinh.diemAn?.has(x.canh.a) || hinh.diemAn?.has(x.canh.b)) {
+            t = `~${b.id}_${Object.keys(diem).length}`;
+            diem[t] = x.p;
+            diemAn.add(t);
+            return t;
+          }
           if (!t || (diem[t] && len(sub(diem[t], x.p)) >= eps)) {
             t = TEN_GIAO.find(c => !daDung.has(c)) || 'X' + Object.keys(diem).length;
             daDung.add(t);
@@ -293,7 +302,12 @@ export function moTa(b, kq) {
         : mp.kieu === 'song-song-mat' ? `qua ${n(mp.diem)}, song song (${nn(mp.mat)})`
         : `qua ${n(mp.diem)}, vuông góc ${nn(mp.duong)}`;
       const dg = kq?.daGiac.find(d => d.id === b.id);
-      const loaiDg = dg ? ({ 3: 'tam giác', 4: 'tứ giác', 5: 'ngũ giác', 6: 'lục giác' }[dg.diem.length] || dg.diem.length + ' cạnh') + ' ' + nn(dg.diem) : '';
+      const TEN_DG = { 3: 'tam giác', 4: 'tứ giác', 5: 'ngũ giác', 6: 'lục giác' };
+      // Khối tròn xoay: đỉnh trên mặt cong không có tên (bắt đầu bằng ~)
+      const coAn = dg?.diem.some(t => t.startsWith('~'));
+      const loaiDg = !dg ? '' : coAn
+        ? (dg.diem.length > 8 ? 'đường cong (elip hoặc một phần elip)' : `${TEN_DG[dg.diem.length] || 'đa giác'} có đỉnh trên đường tròn`)
+        : (TEN_DG[dg.diem.length] || dg.diem.length + ' cạnh') + ' ' + nn(dg.diem);
       return `Thiết diện ${ten}${loaiDg ? ': ' + loaiDg : ''}`;
     }
   }

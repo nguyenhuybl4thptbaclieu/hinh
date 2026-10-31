@@ -8,7 +8,7 @@
 //   hien_thi: { kieu, goc_nhin: {xoay, goc, heSo}, net_chinh_tay: {idĐoạn: 'lien'|'khuat'}, an_phu, mat_day (vẽ mặt phẳng chứa đáy) }
 // }
 
-import { GOC_NHIN_CHUAN } from './thu-vien.js';
+import { gocNhinChuan } from './thu-vien.js';
 import { taoKhoi } from './khoi.js';
 
 export const PHIEN_BAN = 1;
@@ -29,7 +29,7 @@ export function taiLieuTuMau(mau, meta = {}) {
     goc: { loai: mau.loai, tham_so: structuredClone(mau.ts) },
     buoc_dung: [],
     so_do: [],
-    hien_thi: { kieu: 'bai-giang', goc_nhin: { ...GOC_NHIN_CHUAN }, net_chinh_tay: {}, an_phu: false, mat_day: false }
+    hien_thi: { kieu: 'bai-giang', goc_nhin: gocNhinChuan(mau.loai), net_chinh_tay: {}, an_phu: false, mat_day: false }
   };
 }
 
@@ -39,7 +39,7 @@ export function chuanHoa(x) {
   if (typeof x.version !== 'number') throw new Error('Tệp thiếu số phiên bản');
   if (x.version > PHIEN_BAN) throw new Error('Tệp được tạo bởi bản app mới hơn, cần cập nhật app');
   const g = x.goc;
-  if (!g || !['chop', 'lang-tru'].includes(g.loai) || !g.tham_so || typeof g.tham_so !== 'object') {
+  if (!g || !['chop', 'lang-tru', 'non', 'tru', 'cau'].includes(g.loai) || !g.tham_so || typeof g.tham_so !== 'object') {
     throw new Error('Tệp thiếu phần khối gốc');
   }
   taoKhoi(g.loai, g.tham_so); // số đo sai thì báo lỗi ngay khi mở
@@ -52,7 +52,7 @@ export function chuanHoa(x) {
     so_do: Array.isArray(x.so_do) ? x.so_do.filter(m => m && typeof m === 'object' && typeof m.loai === 'string') : [],
     hien_thi: {
       kieu: ht.kieu === 'de' ? 'de' : 'bai-giang',
-      goc_nhin: { ...GOC_NHIN_CHUAN, ...ht.goc_nhin },
+      goc_nhin: { ...gocNhinChuan(g.loai), ...ht.goc_nhin },
       net_chinh_tay: { ...ht.net_chinh_tay },
       an_phu: !!ht.an_phu,
       mat_day: !!ht.mat_day,
