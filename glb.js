@@ -24,7 +24,9 @@ export function taoGLB(hinh, { kieu = 'bai-giang', cheDo = 'trong', anPhu = fals
   };
 
   // Đổi hệ: z lên (hình) → y lên (glTF), co về cỡ coMet, đặt điểm thấp nhất ở y = 0
-  const ds = Object.entries(hinh.diem).filter(([t]) => !hinh.diemAn?.has(t)).map(([, p]) => p);
+  // Cỡ theo các đỉnh của khối (kể cả đỉnh ẩn của đường tròn đáy nón, trụ) và các điểm có tên
+  const dinhKhoi = new Set(hinh.mat.flat());
+  const ds = Object.entries(hinh.diem).filter(([t]) => dinhKhoi.has(t) || !hinh.diemAn?.has(t)).map(([, p]) => p);
   const xs = ds.map(p => p[0]), ys = ds.map(p => p[1]), zs = ds.map(p => p[2]);
   const lon = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), Math.max(...zs) - Math.min(...zs)) || 1;
   const k = coMet / lon;
