@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Xem hình không gian</title>
+<style>
+  :root {
+    --nen: #f5f5f7; --o: #fff; --chu: #1d1d1f; --mo: #6e6e73; --nhat: #86868b;
+    --nhan: #0071e3; --nhan-nhat: #e8f1fc; --nut: rgba(0, 0, 0, 0.05); --cam: #c93400;
+    --bong: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--nen); color: var(--chu); display: flex; flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 15px; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+  }
+  header { padding: max(12px, env(safe-area-inset-top)) 16px 8px; display: flex; flex-direction: column; gap: 10px; }
+  .ten-app { font-size: 12px; color: var(--nhat); font-weight: 500; letter-spacing: .02em; }
+  h1 { margin: 2px 0 0; font-size: 19px; font-weight: 600; line-height: 1.3; letter-spacing: -0.015em; }
+  button { font: inherit; font-size: 14px; font-weight: 500; border: 0; border-radius: 980px; padding: 8px 14px; background: var(--nut); color: var(--chu); cursor: pointer; }
+  button.bat { background: var(--nhan-nhat); color: var(--nhan); }
+  button:disabled { color: #b7b7bc; }
+  .phan-doan { display: flex; background: var(--nut); border-radius: 10px; padding: 2px; gap: 2px; }
+  .phan-doan > button { flex: 1; border-radius: 8px; background: transparent; padding: 7px 10px; }
+  .phan-doan > button.bat { background: var(--o); color: var(--chu); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 12px max(12px, env(safe-area-inset-bottom)); gap: 10px; }
+  .the { flex: 1; min-height: 260px; background: var(--o); border-radius: 16px; box-shadow: var(--bong); overflow: hidden; position: relative; display: flex; }
+  #ve { flex: 1; width: 100%; height: 100%; touch-action: none; display: block; }
+  #ve text { user-select: none; pointer-events: none; }
+  model-viewer { flex: 1; width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(#fbfbfd, #eef0f4); }
+  .nhan-3d { background: rgba(255, 255, 255, 0.85); border: 0; border-radius: 6px; padding: 1px 6px; font: italic 600 15px "Times New Roman", Times, serif; color: #1d1d1f; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15); pointer-events: none; }
+  .an-nhan .nhan-3d { display: none; }
+  #nut-ar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--nhan); color: #fff; padding: 10px 20px; font-size: 15px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35); }
+  .cong-cu { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .thanh { background: var(--o); border-radius: 14px; box-shadow: var(--bong); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .thanh[hidden], [hidden] { display: none !important; }
+  .tb-chu { font-size: 16px; line-height: 1.45; min-height: 2.9em; }
+  .tb-nut { display: flex; align-items: center; gap: 6px; }
+  .tb-nut button { flex: 1; }
+  .tb-so { min-width: 52px; text-align: center; color: var(--mo); font-variant-numeric: tabular-nums; font-size: 14px; }
+  .dong { display: flex; align-items: center; gap: 10px; }
+  .dong input[type=range] { flex: 1; accent-color: var(--nhan); }
+  .ghi { font-size: 12px; color: var(--nhat); text-align: center; margin: 0; }
+  .loi { margin: 40px 20px; padding: 16px; background: #fdeaea; color: #a1111d; border-radius: 14px; line-height: 1.5; }
+  .cho { margin: auto; color: var(--nhat); }
+  @media (min-width: 900px) {
+    main { flex-direction: row; padding: 0 20px 20px; }
+    .ben { width: 340px; display: flex; flex-direction: column; gap: 10px; }
+    header { padding: 16px 20px 10px; flex-direction: row; align-items: flex-end; justify-content: space-between; }
+    header .phan-doan { width: 280px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="ten-app">BẢNG HÌNH KHÔNG GIAN</div>
+    <h1 id="ten">Đang mở hình…</h1>
+  </div>
+  <div class="phan-doan" id="chon-che-do" role="group" aria-label="Chế độ xem">
+    <button data-che-do="ve" class="bat">Hình vẽ</button>
+    <button data-che-do="3d">3D · AR</button>
+  </div>
+</header>
+
+<main id="noi-dung">
+  <div class="the" id="the-ve"><svg id="ve" aria-label="Hình vẽ"></svg></div>
+  <div class="the" id="the-3d" hidden><p class="cho" id="cho-3d">Đang tải phần xem 3D…</p></div>
+  <div class="ben">
+    <div id="cc-ve" class="cong-cu">
+      <button id="trinh-bay">▶ Dựng từng bước</button>
+      <button id="trai-phang">Trải phẳng</button>
+      <button id="goc-chuan">Góc chuẩn</button>
+    </div>
+    <div id="thanh-tb" class="thanh" hidden>
+      <div id="tb-chu" class="tb-chu" aria-live="polite"></div>
+      <div class="tb-nut">
+        <button id="tb-lui" aria-label="Bước trước">◀ Trước</button>
+        <span id="tb-so" class="tb-so"></span>
+        <button id="tb-toi" class="bat" aria-label="Bước sau">Sau ▶</button>
+      </div>
+    </div>
+    <div id="thanh-trai" class="thanh" hidden>
+      <div class="dong"><span>Trải</span><input id="muc-trai" type="range" min="0" max="1" step="0.005" value="0" aria-label="Mức trải"><span id="pt-trai" class="tb-so">0%</span></div>
+      <div class="dong"><button id="chay-trai" class="bat" style="flex:1">▶ Mở ra</button><button id="nhin-tren" style="flex:1">Nhìn từ trên</button></div>
+    </div>
+    <div id="cc-3d" class="cong-cu" hidden>
+      <div class="phan-doan" id="kieu-3d" role="group" aria-label="Kiểu xem 3D" style="width:100%">
+        <button data-kieu="trong" class="bat">Trong suốt</button>
+        <button data-kieu="kin">Khối kín</button>
+        <button data-kieu="net">Chỉ nét</button>
+      </div>
+      <button id="hien-nhan" class="bat">Tên điểm</button>
+    </div>
+    <p class="ghi" id="ghi-ve">Kéo trên hình để xoay.</p>
+    <p class="ghi" id="ghi-3d" hidden>Một ngón để xoay, hai ngón để phóng to. Xem AR: Android cần Chrome và ARCore, iPhone dùng Safari.</p>
+  </div>
+</main>
+
+<script type="module" src="xem.js"></script>
+</body>
+</html>
